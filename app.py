@@ -3,10 +3,12 @@ import logging
 import uuid
 import cv2
 import numpy as np
+import tempfile
 from flask import Flask, render_template, request, redirect, url_for, flash, session
 from werkzeug.utils import secure_filename
 from werkzeug.middleware.proxy_fix import ProxyFix
 from book_detector import detect_books, extract_book_info
+from pdf2image import convert_from_path
 
 # Configure app
 app = Flask(__name__)
@@ -15,7 +17,7 @@ app.wsgi_app = ProxyFix(app.wsgi_app, x_proto=1, x_host=1)
 
 # Configure file upload settings
 UPLOAD_FOLDER = 'static/uploads'
-ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg'}
+ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'pdf'}
 
 # Create upload folder if it doesn't exist
 if not os.path.exists(UPLOAD_FOLDER):
@@ -50,8 +52,35 @@ def upload_image():
             filepath = os.path.join(app.config['UPLOAD_FOLDER'], unique_filename)
             file.save(filepath)
             
-            # Process the image and detect books
-            image = cv2.imread(filepath)
+            # Check if the file is a PDF
+            is_pdf = filepath.lower().endswith('.pdf')
+            
+            if is_pdf:
+                try:
+                    # Convert PDF to images
+                    logging.debug("Converting PDF to images...")
+                    pdf_images = convert_from_path(filepath)
+                    
+                    if not pdf_images:
+                        flash('Failed to extract images from PDF', 'danger')
+                        return redirect(url_for('index'))
+                    
+                    # Use the first page as the primary image
+                    with tempfile.NamedTemporaryFile(suffix='.jpg', delete=False) as temp_file:
+                        temp_path = temp_file.name
+                        pdf_images[0].save(temp_path, 'JPEG')
+                    
+                    # Load the image for processing
+                    image = cv2.imread(temp_path)
+                    os.unlink(temp_path)  # Clean up
+                except Exception as e:
+                    logging.error(f"Error processing PDF: {str(e)}")
+                    flash('Failed to process PDF', 'danger')
+                    return redirect(url_for('index'))
+            else:
+                # Process as a regular image
+                image = cv2.imread(filepath)
+            
             if image is None:
                 flash('Failed to process image', 'danger')
                 return redirect(url_for('index'))
@@ -91,7 +120,7 @@ def upload_image():
             flash(f'Error processing image: {str(e)}', 'danger')
             return redirect(url_for('index'))
     else:
-        flash('File type not allowed. Please upload an image (PNG, JPG, JPEG).', 'danger')
+        flash('File type not allowed. Please upload an image (PNG, JPG, JPEG) or a PDF document.', 'danger')
         return redirect(url_for('index'))
 
 @app.route('/results')
