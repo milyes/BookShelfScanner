@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html lang="en" data-bs-theme="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bookshelf Analysis Results</title>
+    <link rel="stylesheet" href="https://cdn.replit.com/agent/bootstrap-agent-dark-theme.min.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/custom.css') }}">
+</head>
+<body>
+    <div class="container py-5">
+        <header class="text-center mb-5">
+            <h1 class="display-4"><i class="bi bi-book me-2"></i>BookShelf Analyzer</h1>
+            <p class="lead">Here are the books we identified on your shelf</p>
+            <a href="{{ url_for('index') }}" class="btn btn-outline-primary mt-2">
+                <i class="bi bi-arrow-left me-2"></i>Upload Another Image
+            </a>
+        </header>
+
+        <!-- Flash Messages -->
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                {% for category, message in messages %}
+                    <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
+                        {{ message }}
+                        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                    </div>
+                {% endfor %}
+            {% endif %}
+        {% endwith %}
+
+        <!-- Original Image -->
+        {% if original_image %}
+        <div class="card mb-5">
+            <div class="card-header">
+                <h2 class="mb-0">Original Bookshelf Image</h2>
+            </div>
+            <div class="card-body text-center">
+                <img src="{{ url_for('static', filename='uploads/' + original_image) }}" alt="Original Bookshelf" class="img-fluid rounded" style="max-height: 400px;">
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- Results Summary -->
+        <div class="card mb-5">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h2 class="mb-0">Detected Books ({{ books|length }})</h2>
+                <div class="btn-group">
+                    <button class="btn btn-sm btn-outline-primary" id="listViewBtn">
+                        <i class="bi bi-list"></i> List View
+                    </button>
+                    <button class="btn btn-sm btn-outline-primary active" id="gridViewBtn">
+                        <i class="bi bi-grid"></i> Grid View
+                    </button>
+                </div>
+            </div>
+            <div class="card-body">
+                {% if books %}
+                    <!-- Grid View (Default) -->
+                    <div class="row row-cols-1 row-cols-md-3 g-4" id="gridView">
+                        {% for book in books %}
+                        <div class="col">
+                            <div class="card h-100 {% if book.confidence == 'High' %}border-success{% elif book.confidence == 'Medium' %}border-warning{% else %}border-danger{% endif %}">
+                                <div class="card-header d-flex justify-content-between align-items-center">
+                                    <span class="badge {% if book.confidence == 'High' %}bg-success{% elif book.confidence == 'Medium' %}bg-warning text-dark{% else %}bg-danger{% endif %}">
+                                        {{ book.confidence }} Confidence
+                                    </span>
+                                    <span class="badge bg-primary">Book #{{ book.id }}</span>
+                                </div>
+                                <div class="text-center p-3">
+                                    <img src="{{ book.image_path }}" class="card-img-top book-image" alt="Book image" style="max-height: 200px; width: auto;">
+                                </div>
+                                <div class="card-body">
+                                    <h3 class="card-title">{{ book.title }}</h3>
+                                    <p class="card-text"><strong>Author:</strong> {{ book.author }}</p>
+                                    {% if book.isbn != 'N/A' %}
+                                    <p class="card-text"><strong>ISBN:</strong> {{ book.isbn }}</p>
+                                    {% endif %}
+                                    {% if book.publisher != 'Unknown Publisher' %}
+                                    <p class="card-text"><strong>Publisher:</strong> {{ book.publisher }}</p>
+                                    {% endif %}
+                                </div>
+                                <div class="card-footer">
+                                    <button class="btn btn-sm btn-outline-info" type="button" data-bs-toggle="collapse" data-bs-target="#rawText{{ book.id }}">
+                                        Show Raw Text
+                                    </button>
+                                    <div class="collapse mt-2" id="rawText{{ book.id }}">
+                                        <div class="card card-body">
+                                            <pre>{{ book.raw_text }}</pre>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+
+                    <!-- List View (Hidden by default) -->
+                    <div class="d-none" id="listView">
+                        <div class="table-responsive">
+                            <table class="table table-hover">
+                                <thead>
+                                    <tr>
+                                        <th>#</th>
+                                        <th>Image</th>
+                                        <th>Title</th>
+                                        <th>Author</th>
+                                        <th>ISBN</th>
+                                        <th>Confidence</th>
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for book in books %}
+                                    <tr>
+                                        <td>{{ book.id }}</td>
+                                        <td>
+                                            <img src="{{ book.image_path }}" alt="Book image" style="height: 80px;">
+                                        </td>
+                                        <td>{{ book.title }}</td>
+                                        <td>{{ book.author }}</td>
+                                        <td>{{ book.isbn }}</td>
+                                        <td>
+                                            <span class="badge {% if book.confidence == 'High' %}bg-success{% elif book.confidence == 'Medium' %}bg-warning text-dark{% else %}bg-danger{% endif %}">
+                                                {{ book.confidence }}
+                                            </span>
+                                        </td>
+                                        <td>
+                                            <button class="btn btn-sm btn-outline-info" type="button" data-bs-toggle="collapse" data-bs-target="#listRawText{{ book.id }}">
+                                                Details
+                                            </button>
+                                        </td>
+                                    </tr>
+                                    <tr class="collapse" id="listRawText{{ book.id }}">
+                                        <td colspan="7">
+                                            <div class="card card-body">
+                                                <h5>Raw detected text:</h5>
+                                                <pre>{{ book.raw_text }}</pre>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                {% else %}
+                    <div class="alert alert-warning">
+                        No books were detected. Please try uploading a clearer image.
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Export Options -->
+        <div class="card mb-4">
+            <div class="card-header">
+                <h3 class="mb-0">Export Options</h3>
+            </div>
+            <div class="card-body">
+                <div class="row g-3">
+                    <div class="col-md-4">
+                        <button class="btn btn-outline-primary w-100" id="exportCSV">
+                            <i class="bi bi-filetype-csv me-2"></i>Export as CSV
+                        </button>
+                    </div>
+                    <div class="col-md-4">
+                        <button class="btn btn-outline-primary w-100" id="exportJSON">
+                            <i class="bi bi-filetype-json me-2"></i>Export as JSON
+                        </button>
+                    </div>
+                    <div class="col-md-4">
+                        <button class="btn btn-outline-primary w-100" id="printResults">
+                            <i class="bi bi-printer me-2"></i>Print Results
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <footer class="bg-dark text-light py-4 mt-5">
+        <div class="container text-center">
+            <p>BookShelf Analyzer &copy; 2023</p>
+        </div>
+    </footer>
+
+    <script>
+        // Books data for export functionality
+        const booksData = {{ books|tojson }};
+    </script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="{{ url_for('static', filename='js/script.js') }}"></script>
+</body>
+</html>
