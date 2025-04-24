@@ -5,6 +5,8 @@ import cv2
 import numpy as np
 from pdf2image import convert_from_path
 from fpdf import FPDF
+import shutil
+from datetime import datetime
 
 # Configurer le logging
 logging.basicConfig(level=logging.DEBUG)
@@ -109,6 +111,152 @@ def clean_pdf_convert_to_images(pdf_path, temp_dir=None, delete_original=False):
     except Exception as e:
         logging.error(f"[!] Erreur lors de la conversion : {e}")
         return []
+
+def restore_image(image_path, output_path=None):
+    """
+    Restaure une image endommagée ou dégradée en utilisant des techniques de traitement d'image avancées.
+    
+    Args:
+        image_path: Chemin vers l'image à restaurer.
+        output_path: Chemin pour sauvegarder l'image restaurée (optionnel).
+        
+    Returns:
+        L'image restaurée au format OpenCV (ndarray) ou le chemin de sortie si spécifié.
+    """
+    if not os.path.exists(image_path):
+        logging.error(f"L'image {image_path} est introuvable.")
+        return None
+    
+    try:
+        # Charger l'image
+        image = cv2.imread(image_path)
+        if image is None:
+            logging.error(f"Impossible de lire l'image: {image_path}")
+            return None
+        
+        # Créer une copie de l'image originale pour comparaison
+        original = image.copy()
+        
+        # Convertir en niveaux de gris
+        if len(image.shape) == 3:
+            gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+        else:
+            gray = image.copy()
+            image = cv2.cvtColor(gray, cv2.COLOR_GRAY2BGR)
+        
+        # 1. Correction de la luminosité et du contraste
+        alpha = 1.3  # Contraste (1.0-3.0)
+        beta = 10    # Luminosité (0-100)
+        adjusted = cv2.convertScaleAbs(gray, alpha=alpha, beta=beta)
+        
+        # 2. Réduction du bruit
+        denoised = cv2.fastNlMeansDenoising(adjusted, None, 10, 7, 21)
+        
+        # 3. Amélioration des bords
+        kernel = np.array([[-1,-1,-1], [-1,9,-1], [-1,-1,-1]])
+        sharpened = cv2.filter2D(denoised, -1, kernel)
+        
+        # 4. Correction automatique des couleurs si l'image est en couleur
+        if len(original.shape) == 3:
+            # Appliquer la correction des contrastes sur chaque canal
+            restored_color = np.zeros_like(original)
+            for i in range(3):  # Pour chaque canal RGB
+                channel = original[:,:,i]
+                # Égalisation adaptative de l'histogramme
+                clahe = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8,8))
+                restored_channel = clahe.apply(channel)
+                restored_color[:,:,i] = restored_channel
+            
+            # Fusionner avec l'image améliorée en niveaux de gris
+            restored = cv2.addWeighted(restored_color, 0.7, cv2.cvtColor(sharpened, cv2.COLOR_GRAY2BGR), 0.3, 0)
+        else:
+            restored = sharpened
+        
+        # Sauvegarder l'image restaurée si un chemin est fourni
+        if output_path:
+            cv2.imwrite(output_path, restored)
+            logging.debug(f"Image restaurée sauvegardée: {output_path}")
+            return output_path
+        
+        return restored
+    
+    except Exception as e:
+        logging.error(f"Erreur lors de la restauration de l'image: {str(e)}")
+        return None
+
+def restore_document(doc_path, output_path=None):
+    """
+    Restaure un document (PDF) endommagé ou dégradé.
+    Traite chaque page individuellement pour une meilleure restauration.
+    
+    Args:
+        doc_path: Chemin vers le document à restaurer.
+        output_path: Chemin pour le document restauré (optionnel).
+        
+    Returns:
+        Le chemin du document restauré si output_path est spécifié, sinon None.
+    """
+    if not os.path.exists(doc_path):
+        logging.error(f"Le document {doc_path} est introuvable.")
+        return None
+    
+    # Vérifier l'extension du fichier
+    file_ext = os.path.splitext(doc_path)[1].lower()
+    if file_ext != '.pdf':
+        logging.error(f"Format de document non pris en charge: {file_ext}. Seuls les PDF sont supportés.")
+        return None
+    
+    # Créer un dossier temporaire pour les images extraites
+    temp_dir = tempfile.mkdtemp()
+    temp_restored_dir = tempfile.mkdtemp()
+    
+    try:
+        # 1. Extraire les pages du PDF
+        logging.debug(f"Extraction des pages du document {doc_path}...")
+        images = convert_from_path(doc_path)
+        
+        # Définir le chemin de sortie si non spécifié
+        if output_path is None:
+            file_name = os.path.basename(doc_path)
+            base_name = os.path.splitext(file_name)[0]
+            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+            output_path = os.path.join(os.path.dirname(doc_path), f"{base_name}_restored_{timestamp}.pdf")
+        
+        # 2. Créer un nouveau PDF pour le document restauré
+        pdf = FPDF()
+        
+        # 3. Traiter chaque page
+        for i, img in enumerate(images):
+            # Sauvegarder l'image temporairement
+            temp_img_path = os.path.join(temp_dir, f"page_{i+1}.jpg")
+            img.save(temp_img_path, "JPEG")
+            
+            # Restaurer l'image
+            restored_img_path = os.path.join(temp_restored_dir, f"restored_page_{i+1}.jpg")
+            restored = restore_image(temp_img_path, restored_img_path)
+            
+            if restored is not None:
+                # Ajouter la page restaurée au PDF
+                pdf.add_page()
+                pdf.image(restored_img_path, x=0, y=0, w=210, h=297)  # Format A4
+                logging.debug(f"Page {i+1} restaurée et ajoutée au PDF")
+        
+        # 4. Sauvegarder le PDF restauré
+        pdf.output(output_path)
+        logging.debug(f"Document restauré sauvegardé: {output_path}")
+        
+        # 5. Nettoyer les fichiers temporaires
+        shutil.rmtree(temp_dir, ignore_errors=True)
+        shutil.rmtree(temp_restored_dir, ignore_errors=True)
+        
+        return output_path
+    
+    except Exception as e:
+        logging.error(f"Erreur lors de la restauration du document: {str(e)}")
+        # Nettoyer en cas d'erreur
+        shutil.rmtree(temp_dir, ignore_errors=True)
+        shutil.rmtree(temp_restored_dir, ignore_errors=True)
+        return None
 
 def process_pdf(pdf_path, output_pdf_path=None, enhance=True):
     """
