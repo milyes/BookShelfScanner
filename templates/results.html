@@ -107,7 +107,7 @@
                                 </div>
                                 <div class="card-footer">
                                     <button class="btn btn-sm btn-outline-info" type="button" data-bs-toggle="collapse" data-bs-target="#rawText{{ book.id }}">
-                                        Show Raw Text
+                                        Voir le texte brut
                                     </button>
                                     <div class="collapse mt-2" id="rawText{{ book.id }}">
                                         <div class="card card-body">
@@ -128,10 +128,10 @@
                                     <tr>
                                         <th>#</th>
                                         <th>Image</th>
-                                        <th>Title</th>
-                                        <th>Author</th>
+                                        <th>Titre</th>
+                                        <th>Auteur</th>
                                         <th>ISBN</th>
-                                        <th>Confidence</th>
+                                        <th>Confiance</th>
                                         <th>Actions</th>
                                     </tr>
                                 </thead>
@@ -152,7 +152,7 @@
                                         </td>
                                         <td>
                                             <button class="btn btn-sm btn-outline-info" type="button" data-bs-toggle="collapse" data-bs-target="#listRawText{{ book.id }}">
-                                                Details
+                                                Détails
                                             </button>
                                         </td>
                                     </tr>
@@ -212,7 +212,7 @@
                     </div>
                 {% else %}
                     <div class="alert alert-warning">
-                        No books were detected. Please try uploading a clearer image.
+                        Aucun livre n'a été détecté. Veuillez essayer de télécharger une image plus claire.
                     </div>
                 {% endif %}
             </div>
@@ -222,7 +222,7 @@
         {% if is_pdf and enhanced_pdf %}
         <div class="card mb-4">
             <div class="card-header">
-                <h3 class="mb-0">PDF Enhancement</h3>
+                <h3 class="mb-0">Amélioration du PDF</h3>
             </div>
             <div class="card-body">
                 <div class="alert alert-info">
@@ -367,27 +367,6 @@
                         </div>
                     </div>
                 </div>
-            </div>
-        </div>
-        {% endif %}
-        
-        <!-- PDF Enhancement Options - Only shown if the uploaded file was a PDF -->
-        {% if is_pdf and enhanced_pdf %}
-        <div class="card mb-4">
-            <div class="card-header">
-                <h3 class="mb-0">PDF Enhancement</h3>
-            </div>
-            <div class="card-body">
-                <div class="alert alert-info">
-                    <i class="bi bi-info-circle-fill me-2"></i>
-                    Nous avons amélioré la qualité de votre PDF pour une meilleure lisibilité.
-                </div>
-                <a href="{{ url_for('download_enhanced_pdf') }}" class="btn btn-success">
-                    <i class="bi bi-file-earmark-pdf me-2"></i>Télécharger le PDF amélioré
-                </a>
-                <p class="mt-3 small text-muted">
-                    L'amélioration inclut : réglage du contraste, détection des bords, et réduction du bruit pour une meilleure lisibilité.
-                </p>
             </div>
         </div>
         {% endif %}
