@@ -15,5 +15,6 @@ dependencies = [
     "pdf2image>=1.17.0",
     "psycopg2-binary>=2.9.10",
     "pytesseract>=0.3.13",
+    "trafilatura>=2.0.0",
     "werkzeug>=3.1.3",
 ]
