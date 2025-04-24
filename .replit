@@ -2,7 +2,7 @@ modules = ["python-3.11"]
 
 [nix]
 channel = "stable-24_05"
-packages = ["libGL", "libGLU", "openssl", "poppler_utils", "postgresql", "tesseract", "poppler"]
+packages = ["libGL", "libGLU", "openssl", "poppler", "poppler_utils", "postgresql", "tesseract"]
 
 [deployment]
 deploymentTarget = "autoscale"

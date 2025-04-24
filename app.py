@@ -4,12 +4,14 @@ import uuid
 import cv2
 import numpy as np
 import tempfile
-from flask import Flask, render_template, request, redirect, url_for, flash, session, send_file
+import json
+from flask import Flask, render_template, request, redirect, url_for, flash, session, send_file, jsonify
 from werkzeug.utils import secure_filename
 from werkzeug.middleware.proxy_fix import ProxyFix
 from book_detector import detect_books, extract_book_info
 from pdf2image import convert_from_path
 from pdf_enhancer import enhance_pdf_image, process_pdf
+from book_recommender import generate_book_recommendations, get_genre_analysis
 
 # Configurer le logging
 logging.basicConfig(level=logging.DEBUG)
@@ -159,8 +161,76 @@ def results():
         flash('No book data available. Please upload an image first.', 'warning')
         return redirect(url_for('index'))
     
-    return render_template('results.html', books=books, original_image=original_image, 
-                         enhanced_pdf=enhanced_pdf, is_pdf=is_pdf)
+    # Générer des recommandations basées sur les livres détectés
+    try:
+        recommendations = session.get('recommendations')
+        if not recommendations:
+            recommendations = generate_book_recommendations(books, num_recommendations=3)
+            session['recommendations'] = recommendations
+        
+        # Analyser les genres et thèmes
+        genre_analysis = session.get('genre_analysis')
+        if not genre_analysis:
+            genre_analysis = get_genre_analysis(books)
+            session['genre_analysis'] = genre_analysis
+    except Exception as e:
+        logging.error(f"Erreur lors de la génération des recommandations: {str(e)}")
+        recommendations = []
+        genre_analysis = {"genres": [], "themes": [], "analysis": "Analyse non disponible."}
+    
+    return render_template('results.html', 
+                           books=books, 
+                           original_image=original_image,
+                           enhanced_pdf=enhanced_pdf, 
+                           is_pdf=is_pdf,
+                           recommendations=recommendations,
+                           genre_analysis=genre_analysis)
+
+@app.route('/get-recommendations', methods=['POST'])
+def get_recommendations():
+    """
+    Endpoint API pour générer des recommandations de livres personnalisées.
+    """
+    try:
+        books = session.get('books', [])
+        
+        if not books:
+            return jsonify({"error": "Aucun livre disponible."}), 400
+        
+        data = request.get_json()
+        num_recommendations = data.get('num_recommendations', 5) if data else 5
+        
+        # Générer de nouvelles recommandations
+        recommendations = generate_book_recommendations(books, num_recommendations)
+        
+        # Mettre à jour les recommandations en session
+        if recommendations:
+            session['recommendations'] = recommendations
+        
+        return jsonify(recommendations)
+    
+    except Exception as e:
+        logging.error(f"Erreur API recommandations: {str(e)}")
+        return jsonify({"error": str(e)}), 500
+
+@app.route('/analyze-library', methods=['GET'])
+def analyze_library():
+    """
+    Endpoint API pour analyser la bibliothèque (genres, thèmes).
+    """
+    try:
+        books = session.get('books', [])
+        
+        if not books:
+            return jsonify({"error": "Aucun livre disponible."}), 400
+        
+        analysis = get_genre_analysis(books)
+        
+        return jsonify(analysis)
+    
+    except Exception as e:
+        logging.error(f"Erreur API analyse: {str(e)}")
+        return jsonify({"error": str(e)}), 500
 
 @app.route('/download-enhanced-pdf')
 def download_enhanced_pdf():

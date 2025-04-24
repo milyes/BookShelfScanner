@@ -96,6 +96,7 @@ document.addEventListener('DOMContentLoaded', function() {
     const exportCSV = document.getElementById('exportCSV');
     const exportJSON = document.getElementById('exportJSON');
     const printResults = document.getElementById('printResults');
+    const refreshRecommendations = document.getElementById('refreshRecommendations');
     
     if (exportCSV) {
         exportCSV.addEventListener('click', function() {
@@ -153,6 +154,50 @@ document.addEventListener('DOMContentLoaded', function() {
     if (printResults) {
         printResults.addEventListener('click', function() {
             window.print();
+        });
+    }
+    
+    // Fonctionnalité de rafraîchissement des recommandations
+    if (refreshRecommendations) {
+        refreshRecommendations.addEventListener('click', function() {
+            // Afficher un indicateur de chargement
+            const button = this;
+            const originalText = button.innerHTML;
+            button.disabled = true;
+            button.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Chargement...';
+            
+            // Appeler l'API pour obtenir de nouvelles recommandations
+            fetch('/get-recommendations', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    num_recommendations: 3
+                })
+            })
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error('Erreur lors de la récupération des recommandations');
+                }
+                return response.json();
+            })
+            .then(data => {
+                // Recharger la page pour afficher les nouvelles recommandations
+                // Dans le cas d'une application plus avancée, on pourrait mettre à jour dynamiquement le DOM
+                // Mais pour simplifier, nous rechargeons la page entière
+                sessionStorage.setItem('refreshedRecommendations', JSON.stringify(data));
+                window.location.reload();
+            })
+            .catch(error => {
+                console.error('Erreur:', error);
+                alert('Erreur lors du rafraîchissement des recommandations. Veuillez réessayer.');
+            })
+            .finally(() => {
+                // Réinitialiser le bouton
+                button.disabled = false;
+                button.innerHTML = originalText;
+            });
         });
     }
     
