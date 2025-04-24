@@ -153,6 +153,27 @@
             </div>
         </div>
 
+        <!-- PDF Enhancement Options - Only shown if the uploaded file was a PDF -->
+        {% if is_pdf and enhanced_pdf %}
+        <div class="card mb-4">
+            <div class="card-header">
+                <h3 class="mb-0">PDF Enhancement</h3>
+            </div>
+            <div class="card-body">
+                <div class="alert alert-info">
+                    <i class="bi bi-info-circle-fill me-2"></i>
+                    Nous avons amélioré la qualité de votre PDF pour une meilleure lisibilité.
+                </div>
+                <a href="{{ url_for('download_enhanced_pdf') }}" class="btn btn-success">
+                    <i class="bi bi-file-earmark-pdf me-2"></i>Télécharger le PDF amélioré
+                </a>
+                <p class="mt-3 small text-muted">
+                    L'amélioration inclut : réglage du contraste, détection des bords, et réduction du bruit pour une meilleure lisibilité.
+                </p>
+            </div>
+        </div>
+        {% endif %}
+        
         <!-- Export Options -->
         <div class="card mb-4">
             <div class="card-header">
