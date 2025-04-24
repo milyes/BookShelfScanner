@@ -475,12 +475,19 @@ def restore_page():
                 # Restaurer le document PDF
                 try:
                     output_path = os.path.join(app.config['UPLOAD_FOLDER'], f"restored_{unique_filename}")
-                    restored_doc = restore_document(filepath, output_path)
+                    
+                    # Rediriger vers la page des étapes de restauration
+                    session['restoration_in_progress'] = True
+                    session['is_document'] = True
+                    session['original_document'] = filepath
+                    session.modified = True
+                    
+                    # Commencer le processus de restauration en passant la session pour les mises à jour de progression
+                    restored_doc = restore_document(filepath, output_path, session)
                     
                     if restored_doc:
                         session['restored_document'] = restored_doc
-                        session['original_document'] = filepath
-                        session['is_document'] = True
+                        session['restoration_in_progress'] = False
                         flash('Document restauré avec succès', 'success')
                     else:
                         flash('Impossible de restaurer le document', 'danger')
@@ -566,6 +573,127 @@ def download_restored_document():
     else:
         flash('Document restauré non disponible', 'danger')
         return redirect(url_for('restoration_results'))
+
+@app.route('/restoration-steps')
+def restoration_steps():
+    """
+    Affiche les étapes de restauration en temps réel
+    """
+    is_document = session.get('is_document', False)
+    restoration_status = session.get('restoration_status', {})
+    
+    # Valeurs par défaut
+    current_step = restoration_status.get('current_step', 1)
+    total_steps = 5
+    current_step_name = "Initialisation"
+    current_step_description = "Le processus de restauration est en cours d'initialisation."
+    
+    # Progression d'extraction des pages
+    pages_extracted = restoration_status.get('pages_extracted', 0)
+    total_pages = restoration_status.get('total_pages', 1)
+    page_extract_progress = int((pages_extracted / total_pages) * 100) if total_pages > 0 else 0
+    
+    # Progression de la restauration
+    current_page = restoration_status.get('current_page', 0)
+    restoration_progress = int((current_page / total_pages) * 100) if total_pages > 0 else 0
+    
+    # Progression de la recomposition
+    pages_added = restoration_status.get('pages_added', 0)
+    recompose_progress = int((pages_added / total_pages) * 100) if total_pages > 0 else 0
+    
+    # Informations d'étape
+    if current_step == 1:
+        current_step_name = "Chargement du Document"
+        current_step_description = "Le document a été téléchargé et est en cours d'analyse."
+    elif current_step == 2:
+        current_step_name = "Extraction des Pages"
+        current_step_description = "Le document est divisé en pages individuelles pour un traitement optimal de la restauration."
+    elif current_step == 3:
+        current_step_name = "Restauration des Images"
+        current_step_description = "Chaque page est traitée avec des algorithmes avancés pour réduire le bruit, améliorer le contraste et restaurer les détails."
+    elif current_step == 4:
+        current_step_name = "Recomposition du Document"
+        current_step_description = "Les pages restaurées sont assemblées en un document PDF unique de haute qualité."
+    elif current_step == 5:
+        current_step_name = "Finalisation"
+        current_step_description = "Le document a été restauré avec succès et est prêt à être téléchargé."
+    
+    # Informations de comparaison avant/après
+    show_comparison = restoration_status.get('show_comparison', False)
+    original_page_url = ""
+    restored_page_url = ""
+    
+    if show_comparison:
+        original_page_url = url_for('static', filename=f'uploads/{restoration_status.get("original_page", "")}')
+        restored_page_url = url_for('static', filename=f'uploads/{restoration_status.get("restored_page", "")}')
+    
+    # Paramètres de restauration
+    settings = restoration_status.get('settings', {})
+    intensity = settings.get('intensity', 'medium')
+    detail = settings.get('detail', 'high')
+    ocr_optimize = settings.get('ocr_optimize', 'enabled')
+    remove_stains = settings.get('remove_stains', True)
+    fix_borders = settings.get('fix_borders', True)
+    enhance_text = settings.get('enhance_text', True)
+    auto_rotate = settings.get('auto_rotate', False)
+    
+    return render_template('restoration_steps.html',
+                          is_document=is_document,
+                          current_step=current_step,
+                          total_steps=total_steps,
+                          current_step_name=current_step_name,
+                          current_step_description=current_step_description,
+                          pages_extracted=pages_extracted,
+                          total_pages=total_pages,
+                          page_extract_progress=page_extract_progress,
+                          current_page=current_page,
+                          restoration_progress=restoration_progress,
+                          pages_added=pages_added,
+                          recompose_progress=recompose_progress,
+                          show_comparison=show_comparison,
+                          original_page_url=original_page_url,
+                          restored_page_url=restored_page_url,
+                          intensity=intensity,
+                          detail=detail,
+                          ocr_optimize=ocr_optimize,
+                          remove_stains=remove_stains,
+                          fix_borders=fix_borders,
+                          enhance_text=enhance_text,
+                          auto_rotate=auto_rotate)
+
+@app.route('/update-restoration-settings', methods=['POST'])
+def update_restoration_settings():
+    """
+    Met à jour les paramètres de restauration
+    """
+    # Récupérer les paramètres du formulaire
+    intensity = request.form.get('intensity', 'medium')
+    detail = request.form.get('detail', 'high')
+    ocr_optimize = request.form.get('ocr_optimize', 'enabled')
+    remove_stains = 'remove_stains' in request.form
+    fix_borders = 'fix_borders' in request.form
+    enhance_text = 'enhance_text' in request.form
+    auto_rotate = 'auto_rotate' in request.form
+    
+    # Mettre à jour les paramètres dans la session
+    restoration_status = session.get('restoration_status', {})
+    settings = restoration_status.get('settings', {})
+    
+    settings.update({
+        'intensity': intensity,
+        'detail': detail,
+        'ocr_optimize': ocr_optimize,
+        'remove_stains': remove_stains,
+        'fix_borders': fix_borders,
+        'enhance_text': enhance_text,
+        'auto_rotate': auto_rotate
+    })
+    
+    restoration_status['settings'] = settings
+    session['restoration_status'] = restoration_status
+    
+    flash('Paramètres de restauration mis à jour avec succès', 'success')
+    return redirect(url_for('restoration_steps'))
 
 # Add error handlers
 @app.errorhandler(413)
