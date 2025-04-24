@@ -4,11 +4,15 @@ import uuid
 import cv2
 import numpy as np
 import tempfile
-from flask import Flask, render_template, request, redirect, url_for, flash, session
+from flask import Flask, render_template, request, redirect, url_for, flash, session, send_file
 from werkzeug.utils import secure_filename
 from werkzeug.middleware.proxy_fix import ProxyFix
 from book_detector import detect_books, extract_book_info
 from pdf2image import convert_from_path
+from pdf_enhancer import enhance_pdf_image, process_pdf
+
+# Configurer le logging
+logging.basicConfig(level=logging.DEBUG)
 
 # Configure app
 app = Flask(__name__)
@@ -57,22 +61,43 @@ def upload_image():
             
             if is_pdf:
                 try:
-                    # Convert PDF to images
-                    logging.debug("Converting PDF to images...")
-                    pdf_images = convert_from_path(filepath)
+                    # Utiliser notre fonctionnalité d'amélioration de PDF
+                    logging.debug("Traitement du PDF pour amélioration...")
+                    enhanced_images = process_pdf(filepath)
                     
-                    if not pdf_images:
-                        flash('Failed to extract images from PDF', 'danger')
-                        return redirect(url_for('index'))
-                    
-                    # Use the first page as the primary image
-                    with tempfile.NamedTemporaryFile(suffix='.jpg', delete=False) as temp_file:
-                        temp_path = temp_file.name
-                        pdf_images[0].save(temp_path, 'JPEG')
-                    
-                    # Load the image for processing
-                    image = cv2.imread(temp_path)
-                    os.unlink(temp_path)  # Clean up
+                    if not enhanced_images or len(enhanced_images) == 0:
+                        # Fallback sur la méthode originale si process_pdf a échoué
+                        logging.debug("Méthode d'amélioration échouée, utilisation de la méthode standard...")
+                        pdf_images = convert_from_path(filepath)
+                        
+                        if not pdf_images:
+                            flash('Failed to extract images from PDF', 'danger')
+                            return redirect(url_for('index'))
+                        
+                        # Use the first page as the primary image
+                        with tempfile.NamedTemporaryFile(suffix='.jpg', delete=False) as temp_file:
+                            temp_path = temp_file.name
+                            pdf_images[0].save(temp_path, 'JPEG')
+                        
+                        # Load the image for processing
+                        image = cv2.imread(temp_path)
+                        os.unlink(temp_path)  # Clean up
+                    else:
+                        # Utiliser la première image améliorée
+                        image = enhanced_images[0]
+                        
+                        # Générer un PDF amélioré pour le téléchargement ultérieur
+                        enhanced_pdf_path = os.path.join(app.config['UPLOAD_FOLDER'], f"enhanced_{unique_filename}.pdf")
+                        # Traiter le PDF et créer un PDF amélioré
+                        process_pdf(filepath, enhanced_pdf_path, enhance=True)
+                        session['enhanced_pdf'] = enhanced_pdf_path
+                        
+                        # Sauvegarder le résultat original pour affichage
+                        with tempfile.NamedTemporaryFile(suffix='.jpg', delete=False) as temp_file:
+                            temp_path = temp_file.name
+                            cv2.imwrite(temp_path, image)
+                            session['original_pdf_image'] = temp_path
+                        
                 except Exception as e:
                     logging.error(f"Error processing PDF: {str(e)}")
                     flash('Failed to process PDF', 'danger')
@@ -127,12 +152,27 @@ def upload_image():
 def results():
     books = session.get('books', [])
     original_image = session.get('original_image', None)
+    enhanced_pdf = session.get('enhanced_pdf', None)
+    is_pdf = enhanced_pdf is not None
     
     if not books:
         flash('No book data available. Please upload an image first.', 'warning')
         return redirect(url_for('index'))
     
-    return render_template('results.html', books=books, original_image=original_image)
+    return render_template('results.html', books=books, original_image=original_image, 
+                         enhanced_pdf=enhanced_pdf, is_pdf=is_pdf)
+
+@app.route('/download-enhanced-pdf')
+def download_enhanced_pdf():
+    enhanced_pdf = session.get('enhanced_pdf', None)
+    if enhanced_pdf and os.path.exists(enhanced_pdf):
+        # Déterminer le nom du fichier
+        filename = os.path.basename(enhanced_pdf)
+        # Retourner le fichier pour téléchargement
+        return send_file(enhanced_pdf, as_attachment=True, download_name=filename)
+    else:
+        flash('Enhanced PDF not available', 'danger')
+        return redirect(url_for('results'))
 
 # Add error handlers
 @app.errorhandler(413)
