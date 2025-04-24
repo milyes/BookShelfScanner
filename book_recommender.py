@@ -1,6 +1,7 @@
 import os
 import json
 import logging
+import random
 from openai import OpenAI
 
 # Configurer le logging
@@ -158,3 +159,111 @@ Répondre uniquement au format JSON avec cette structure:
     except Exception as e:
         logging.error(f"Erreur lors de l'analyse des genres: {str(e)}")
         return {"genres": [], "themes": [], "analysis": f"Erreur d'analyse: {str(e)}"}
+
+def generate_book_details(book):
+    """
+    Génère une description détaillée d'un livre en utilisant l'API OpenAI.
+    
+    Args:
+        book: Dictionnaire contenant les informations du livre (titre, auteur, etc.)
+    
+    Returns:
+        Dictionnaire avec les informations enrichies (description, genre, etc.)
+    """
+    try:
+        title = book.get('title', '').strip()
+        author = book.get('author', '').strip()
+        
+        if (not title or title == 'Unknown Title') and (not author or author == 'Unknown Author'):
+            return book
+        
+        # Créer un contexte pour le livre
+        book_context = ""
+        if title and title != 'Unknown Title':
+            book_context += f"Titre: {title}\n"
+        if author and author != 'Unknown Author':
+            book_context += f"Auteur: {author}\n"
+        if book.get('publisher', '') and book.get('publisher', '') != 'Unknown Publisher':
+            book_context += f"Éditeur: {book.get('publisher', '')}\n"
+        if book.get('isbn', ''):
+            book_context += f"ISBN: {book.get('isbn', '')}\n"
+        
+        # Construire le prompt pour l'API OpenAI
+        prompt = f"""
+En tant qu'expert en littérature, veuillez enrichir les informations de ce livre:
+
+{book_context}
+
+Fournir les informations suivantes:
+1. Une description concise (2-3 phrases) du livre
+2. Le genre principal du livre
+3. L'année de publication (approximative si non connue)
+4. Une liste de 2-3 thèmes abordés
+5. Public cible probable
+
+Répondre uniquement au format JSON avec cette structure:
+```json
+{{
+  "description": "Description du livre...",
+  "genre": "Genre principal",
+  "publication_year": "Année de publication (nombre entier)",
+  "themes": ["thème1", "thème2", "thème3"],
+  "audience": "Public cible (ex: adultes, jeunes adultes, enfants)"
+}}
+```
+"""
+        
+        # Appeler l'API OpenAI
+        response = openai.chat.completions.create(
+            model="gpt-4o",  # ne pas modifier sans demande expresse de l'utilisateur
+            messages=[{"role": "user", "content": prompt}],
+            response_format={"type": "json_object"},
+            temperature=0.7,
+            max_tokens=500
+        )
+        
+        # Extraire et parser la réponse JSON
+        content = response.choices[0].message.content
+        details = json.loads(content)
+        
+        # Mettre à jour les informations du livre
+        book.update(details)
+        
+        logging.info(f"Détails enrichis générés pour '{title}'")
+        return book
+    
+    except Exception as e:
+        logging.error(f"Erreur lors de la génération des détails du livre: {str(e)}")
+        return book
+
+def enrich_books_batch(books, max_books=None):
+    """
+    Enrichit les informations pour un lot de livres.
+    
+    Args:
+        books: Liste des livres à enrichir
+        max_books: Nombre maximum de livres à traiter (par défaut tous)
+    
+    Returns:
+        Liste des livres avec informations enrichies
+    """
+    if not books:
+        return []
+    
+    # Limiter le nombre de livres si spécifié
+    if max_books and max_books < len(books):
+        # Sélectionner aléatoirement un sous-ensemble de livres
+        selected_books = random.sample(books, max_books)
+    else:
+        selected_books = books
+    
+    enriched_books = []
+    for book in selected_books:
+        try:
+            enriched_book = generate_book_details(book)
+            enriched_books.append(enriched_book)
+        except Exception as e:
+            logging.error(f"Erreur lors de l'enrichissement du livre {book.get('title', 'Unknown')}: {str(e)}")
+            enriched_books.append(book)
+    
+    return enriched_books
