@@ -73,12 +73,36 @@
                                 </div>
                                 <div class="card-body">
                                     <h3 class="card-title">{{ book.title }}</h3>
-                                    <p class="card-text"><strong>Author:</strong> {{ book.author }}</p>
+                                    <p class="card-text"><strong>Auteur:</strong> {{ book.author }}</p>
                                     {% if book.isbn != 'N/A' %}
                                     <p class="card-text"><strong>ISBN:</strong> {{ book.isbn }}</p>
                                     {% endif %}
                                     {% if book.publisher != 'Unknown Publisher' %}
-                                    <p class="card-text"><strong>Publisher:</strong> {{ book.publisher }}</p>
+                                    <p class="card-text"><strong>Éditeur:</strong> {{ book.publisher }}</p>
+                                    {% endif %}
+                                    {% if book.description %}
+                                    <div class="mt-3">
+                                        <p class="text-muted fst-italic">{{ book.description }}</p>
+                                    </div>
+                                    {% endif %}
+                                    {% if book.themes %}
+                                    <div class="mt-2">
+                                        <p><strong>Thèmes:</strong></p>
+                                        <div class="d-flex flex-wrap gap-1">
+                                            {% for theme in book.themes %}
+                                            <span class="badge bg-info text-dark">{{ theme }}</span>
+                                            {% endfor %}
+                                        </div>
+                                    </div>
+                                    {% endif %}
+                                    {% if book.genre %}
+                                    <p class="card-text mt-2"><strong>Genre:</strong> <span class="badge bg-secondary">{{ book.genre }}</span></p>
+                                    {% endif %}
+                                    {% if book.publication_year %}
+                                    <p class="card-text"><strong>Année:</strong> {{ book.publication_year }}</p>
+                                    {% endif %}
+                                    {% if book.audience %}
+                                    <p class="card-text"><strong>Public:</strong> {{ book.audience }}</p>
                                     {% endif %}
                                 </div>
                                 <div class="card-footer">
@@ -135,7 +159,48 @@
                                     <tr class="collapse" id="listRawText{{ book.id }}">
                                         <td colspan="7">
                                             <div class="card card-body">
-                                                <h5>Raw detected text:</h5>
+                                                {% if book.description %}
+                                                <div class="mb-3">
+                                                    <h5>Description:</h5>
+                                                    <p class="text-muted fst-italic">{{ book.description }}</p>
+                                                </div>
+                                                {% endif %}
+                                                
+                                                <div class="row mb-3">
+                                                    {% if book.genre %}
+                                                    <div class="col-md-4">
+                                                        <h5>Genre:</h5>
+                                                        <span class="badge bg-secondary">{{ book.genre }}</span>
+                                                    </div>
+                                                    {% endif %}
+                                                    
+                                                    {% if book.publication_year %}
+                                                    <div class="col-md-4">
+                                                        <h5>Année:</h5>
+                                                        <p>{{ book.publication_year }}</p>
+                                                    </div>
+                                                    {% endif %}
+                                                    
+                                                    {% if book.audience %}
+                                                    <div class="col-md-4">
+                                                        <h5>Public:</h5>
+                                                        <p>{{ book.audience }}</p>
+                                                    </div>
+                                                    {% endif %}
+                                                </div>
+                                                
+                                                {% if book.themes %}
+                                                <div class="mb-3">
+                                                    <h5>Thèmes:</h5>
+                                                    <div class="d-flex flex-wrap gap-1">
+                                                        {% for theme in book.themes %}
+                                                        <span class="badge bg-info text-dark">{{ theme }}</span>
+                                                        {% endfor %}
+                                                    </div>
+                                                </div>
+                                                {% endif %}
+                                                
+                                                <h5>Texte brut détecté:</h5>
                                                 <pre>{{ book.raw_text }}</pre>
                                             </div>
                                         </td>

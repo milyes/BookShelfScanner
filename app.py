@@ -11,7 +11,7 @@ from werkzeug.middleware.proxy_fix import ProxyFix
 from book_detector import detect_books, extract_book_info
 from pdf2image import convert_from_path
 from pdf_enhancer import enhance_pdf_image, process_pdf, restore_image, restore_document
-from book_recommender import generate_book_recommendations, get_genre_analysis
+from book_recommender import generate_book_recommendations, get_genre_analysis, enrich_books_batch
 from datetime import datetime
 import csv
 import io
@@ -182,6 +182,20 @@ def results():
     if not books:
         flash('No book data available. Please upload an image first.', 'warning')
         return redirect(url_for('index'))
+    
+    # Vérifier si les livres ont déjà été enrichis
+    enriched_books = session.get('enriched_books')
+    if not enriched_books:
+        try:
+            # Enrichir jusqu'à 5 livres maximum pour éviter de surcharger l'API
+            enriched_books = enrich_books_batch(books, max_books=5)
+            session['enriched_books'] = enriched_books
+            books = enriched_books  # Utiliser les livres enrichis pour l'affichage
+        except Exception as e:
+            logging.error(f"Erreur lors de l'enrichissement des livres: {str(e)}")
+            # Continuer avec les livres non enrichis en cas d'erreur
+    else:
+        books = enriched_books  # Utiliser les livres enrichis déjà en session
     
     # Générer des recommandations basées sur les livres détectés
     try:
