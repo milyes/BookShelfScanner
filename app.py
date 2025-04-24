@@ -12,6 +12,10 @@ from book_detector import detect_books, extract_book_info
 from pdf2image import convert_from_path
 from pdf_enhancer import enhance_pdf_image, process_pdf, restore_image, restore_document
 from book_recommender import generate_book_recommendations, get_genre_analysis
+from datetime import datetime
+import csv
+import io
+from flask_sqlalchemy import SQLAlchemy
 
 # Configurer le logging
 logging.basicConfig(level=logging.DEBUG)
@@ -20,6 +24,24 @@ logging.basicConfig(level=logging.DEBUG)
 app = Flask(__name__)
 app.secret_key = os.environ.get("SESSION_SECRET", "dev_secret_key")
 app.wsgi_app = ProxyFix(app.wsgi_app, x_proto=1, x_host=1)
+
+# Configure la base de données
+app.config["SQLALCHEMY_DATABASE_URI"] = os.environ.get("DATABASE_URL")
+app.config["SQLALCHEMY_ENGINE_OPTIONS"] = {
+    "pool_recycle": 300,
+    "pool_pre_ping": True,
+}
+app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
+
+# Importer les modèles après la configuration
+from models import db, Book, User, Library, LibraryBook, RestorationType, RestorationParameter, RestorationJob
+
+# Initialiser la base de données
+db.init_app(app)
+
+# Créer les tables si elles n'existent pas
+with app.app_context():
+    db.create_all()
 
 # Configure file upload settings
 UPLOAD_FOLDER = 'static/uploads'
@@ -242,6 +264,169 @@ def download_enhanced_pdf():
         return send_file(enhanced_pdf, as_attachment=True, download_name=filename)
     else:
         flash('PDF amélioré non disponible', 'danger')
+        return redirect(url_for('results'))
+        
+@app.route('/export-csv')
+def export_csv():
+    """
+    Exporte la liste des livres détectés au format CSV
+    """
+    books = session.get('books', [])
+    
+    if not books:
+        flash('Aucun livre à exporter. Veuillez d\'abord analyser une bibliothèque.', 'warning')
+        return redirect(url_for('index'))
+    
+    # Créer un buffer en mémoire pour le CSV
+    output = io.StringIO()
+    writer = csv.writer(output)
+    
+    # Écrire l'en-tête
+    writer.writerow(['ID', 'Titre', 'Auteur', 'ISBN', 'Éditeur', 'Confiance'])
+    
+    # Écrire les données des livres
+    for book in books:
+        writer.writerow([
+            book.get('id', ''),
+            book.get('title', ''),
+            book.get('author', ''),
+            book.get('isbn', ''),
+            book.get('publisher', ''),
+            book.get('confidence', '')
+        ])
+    
+    # Préparer la réponse
+    output.seek(0)
+    now = datetime.now().strftime("%Y%m%d_%H%M%S")
+    return send_file(
+        io.BytesIO(output.getvalue().encode('utf-8-sig')),
+        mimetype='text/csv',
+        as_attachment=True,
+        download_name=f'bibliotheque_export_{now}.csv'
+    )
+    
+@app.route('/export-pdf')
+def export_pdf():
+    """
+    Génère un catalogue PDF de la bibliothèque
+    """
+    books = session.get('books', [])
+    
+    if not books:
+        flash('Aucun livre à exporter. Veuillez d\'abord analyser une bibliothèque.', 'warning')
+        return redirect(url_for('index'))
+    
+    try:
+        # Créer un PDF temporaire
+        from fpdf import FPDF
+        
+        pdf = FPDF()
+        pdf.add_page()
+        
+        # Définir la police
+        pdf.set_font('Arial', 'B', 16)
+        
+        # Titre
+        pdf.cell(190, 10, 'Catalogue de votre bibliothèque', 0, 1, 'C')
+        pdf.set_font('Arial', 'I', 10)
+        pdf.cell(190, 10, f'Généré le {datetime.now().strftime("%d/%m/%Y à %H:%M")}', 0, 1, 'C')
+        pdf.ln(10)
+        
+        # Contenu
+        pdf.set_font('Arial', 'B', 12)
+        pdf.cell(190, 10, f'Nombre de livres: {len(books)}', 0, 1, 'L')
+        pdf.ln(5)
+        
+        # En-tête du tableau
+        pdf.set_fill_color(200, 220, 255)
+        pdf.cell(10, 10, 'ID', 1, 0, 'C', 1)
+        pdf.cell(80, 10, 'Titre', 1, 0, 'C', 1)
+        pdf.cell(50, 10, 'Auteur', 1, 0, 'C', 1)
+        pdf.cell(50, 10, 'ISBN/Éditeur', 1, 1, 'C', 1)
+        
+        # Contenu du tableau
+        pdf.set_font('Arial', '', 10)
+        for book in books:
+            # Ajuster la hauteur de cellule en fonction de la longueur du titre
+            title = book.get('title', 'Inconnu')
+            title_height = max(10, len(title) // 25 * 6)  # 6pt par ligne, environ 25 caractères par ligne
+            
+            # Ajouter une nouvelle page si nécessaire
+            if pdf.get_y() + title_height > 270:
+                pdf.add_page()
+                
+                # Réafficher l'en-tête du tableau
+                pdf.set_font('Arial', 'B', 12)
+                pdf.set_fill_color(200, 220, 255)
+                pdf.cell(10, 10, 'ID', 1, 0, 'C', 1)
+                pdf.cell(80, 10, 'Titre', 1, 0, 'C', 1)
+                pdf.cell(50, 10, 'Auteur', 1, 0, 'C', 1)
+                pdf.cell(50, 10, 'ISBN/Éditeur', 1, 1, 'C', 1)
+                pdf.set_font('Arial', '', 10)
+            
+            # Écrire les informations du livre
+            pdf.cell(10, title_height, str(book.get('id', '')), 1, 0, 'C')
+            pdf.multi_cell(80, title_height/2, title, 1, 'L')
+            current_y = pdf.get_y()
+            pdf.set_xy(pdf.get_x() + 90, current_y - title_height)
+            pdf.cell(50, title_height, book.get('author', 'Inconnu'), 1, 0, 'L')
+            
+            isbn_publisher = f"ISBN: {book.get('isbn', 'N/A')}"
+            if book.get('publisher', '') != 'Unknown Publisher':
+                isbn_publisher += f"\nÉditeur: {book.get('publisher', '')}"
+            
+            pdf.multi_cell(50, title_height/2, isbn_publisher, 1, 'L')
+        
+        # Ajouter les infos d'analyse
+        genre_analysis = session.get('genre_analysis', None)
+        if genre_analysis:
+            pdf.add_page()
+            pdf.set_font('Arial', 'B', 14)
+            pdf.cell(190, 10, 'Analyse de votre bibliothèque', 0, 1, 'L')
+            pdf.ln(5)
+            
+            # Genres
+            if genre_analysis.get('genres', []):
+                pdf.set_font('Arial', 'B', 12)
+                pdf.cell(190, 10, 'Genres principaux:', 0, 1, 'L')
+                pdf.set_font('Arial', '', 10)
+                
+                for genre in genre_analysis.get('genres', []):
+                    pdf.cell(190, 8, f"• {genre}", 0, 1, 'L')
+                
+                pdf.ln(5)
+            
+            # Thèmes
+            if genre_analysis.get('themes', []):
+                pdf.set_font('Arial', 'B', 12)
+                pdf.cell(190, 10, 'Thèmes récurrents:', 0, 1, 'L')
+                pdf.set_font('Arial', '', 10)
+                
+                for theme in genre_analysis.get('themes', []):
+                    pdf.cell(190, 8, f"• {theme}", 0, 1, 'L')
+                
+                pdf.ln(5)
+            
+            # Analyse
+            if genre_analysis.get('analysis', ''):
+                pdf.set_font('Arial', 'B', 12)
+                pdf.cell(190, 10, 'Analyse littéraire:', 0, 1, 'L')
+                pdf.set_font('Arial', '', 10)
+                
+                analysis_text = genre_analysis.get('analysis', '')
+                pdf.multi_cell(190, 6, analysis_text, 0, 'L')
+        
+        # Sauvegarder le PDF
+        now = datetime.now().strftime("%Y%m%d_%H%M%S")
+        pdf_path = os.path.join(app.config['UPLOAD_FOLDER'], f'catalogue_bibliotheque_{now}.pdf')
+        pdf.output(pdf_path)
+        
+        # Retourner le fichier pour téléchargement
+        return send_file(pdf_path, as_attachment=True, download_name=f'catalogue_bibliotheque_{now}.pdf')
+    
+    except Exception as e:
+        logging.error(f"Erreur lors de la génération du PDF: {str(e)}")
+        flash(f'Erreur lors de la génération du PDF: {str(e)}', 'danger')
         return redirect(url_for('results'))
 
 @app.route('/restore', methods=['GET', 'POST'])
