@@ -10,7 +10,7 @@ from werkzeug.utils import secure_filename
 from werkzeug.middleware.proxy_fix import ProxyFix
 from book_detector import detect_books, extract_book_info
 from pdf2image import convert_from_path
-from pdf_enhancer import enhance_pdf_image, process_pdf
+from pdf_enhancer import enhance_pdf_image, process_pdf, restore_image, restore_document
 from book_recommender import generate_book_recommendations, get_genre_analysis
 
 # Configurer le logging
@@ -243,6 +243,130 @@ def download_enhanced_pdf():
     else:
         flash('PDF amélioré non disponible', 'danger')
         return redirect(url_for('results'))
+
+@app.route('/restore', methods=['GET', 'POST'])
+def restore_page():
+    """
+    Page pour la restauration d'images et de documents
+    """
+    if request.method == 'GET':
+        return render_template('restore.html')
+    
+    if 'file' not in request.files:
+        flash('Aucun fichier sélectionné', 'danger')
+        return redirect(url_for('restore_page'))
+    
+    file = request.files['file']
+    if file.filename == '':
+        flash('Aucun fichier sélectionné', 'danger')
+        return redirect(url_for('restore_page'))
+    
+    if file and allowed_file(file.filename):
+        try:
+            # Créer un nom de fichier unique
+            unique_filename = str(uuid.uuid4()) + os.path.splitext(secure_filename(file.filename))[1]
+            file_ext = os.path.splitext(file.filename)[1].lower()
+            filepath = os.path.join(app.config['UPLOAD_FOLDER'], unique_filename)
+            file.save(filepath)
+            
+            # Déterminer le type de fichier (image ou document)
+            is_pdf = file_ext == '.pdf'
+            
+            if is_pdf:
+                # Restaurer le document PDF
+                try:
+                    output_path = os.path.join(app.config['UPLOAD_FOLDER'], f"restored_{unique_filename}")
+                    restored_doc = restore_document(filepath, output_path)
+                    
+                    if restored_doc:
+                        session['restored_document'] = restored_doc
+                        session['original_document'] = filepath
+                        session['is_document'] = True
+                        flash('Document restauré avec succès', 'success')
+                    else:
+                        flash('Impossible de restaurer le document', 'danger')
+                except Exception as e:
+                    logging.error(f"Erreur lors de la restauration du document: {str(e)}")
+                    flash(f'Erreur lors de la restauration du document: {str(e)}', 'danger')
+            else:
+                # Restaurer l'image
+                try:
+                    output_path = os.path.join(app.config['UPLOAD_FOLDER'], f"restored_{unique_filename}")
+                    restored = restore_image(filepath, output_path)
+                    
+                    if restored:
+                        session['restored_image'] = output_path
+                        session['original_image_path'] = filepath
+                        session['is_document'] = False
+                        flash('Image restaurée avec succès', 'success')
+                    else:
+                        flash('Impossible de restaurer l\'image', 'danger')
+                except Exception as e:
+                    logging.error(f"Erreur lors de la restauration de l'image: {str(e)}")
+                    flash(f'Erreur lors de la restauration de l\'image: {str(e)}', 'danger')
+            
+            return redirect(url_for('restoration_results'))
+        
+        except Exception as e:
+            logging.error(f"Erreur lors du traitement du fichier: {str(e)}")
+            flash(f'Erreur lors du traitement du fichier: {str(e)}', 'danger')
+            return redirect(url_for('restore_page'))
+    else:
+        flash('Type de fichier non autorisé. Veuillez télécharger une image (PNG, JPG, JPEG) ou un document PDF.', 'danger')
+        return redirect(url_for('restore_page'))
+
+@app.route('/restoration-results')
+def restoration_results():
+    """
+    Affiche les résultats de la restauration
+    """
+    is_document = session.get('is_document', False)
+    
+    if is_document:
+        # Pour les documents
+        restored_document = session.get('restored_document', None)
+        original_document = session.get('original_document', None)
+        
+        if not restored_document or not os.path.exists(restored_document):
+            flash('Document restauré non disponible', 'danger')
+            return redirect(url_for('restore_page'))
+        
+        return render_template('restoration_results.html', 
+                              is_document=is_document,
+                              restored_document=os.path.basename(restored_document),
+                              original_document=os.path.basename(original_document))
+    else:
+        # Pour les images
+        restored_image = session.get('restored_image', None)
+        original_image_path = session.get('original_image_path', None)
+        
+        if not restored_image or not os.path.exists(restored_image):
+            flash('Image restaurée non disponible', 'danger')
+            return redirect(url_for('restore_page'))
+        
+        # Obtenez les noms des fichiers pour l'affichage
+        restored_image_filename = os.path.basename(restored_image)
+        original_image_filename = os.path.basename(original_image_path)
+        
+        return render_template('restoration_results.html',
+                              is_document=is_document,
+                              restored_image=restored_image_filename,
+                              original_image=original_image_filename)
+
+@app.route('/download-restored-document')
+def download_restored_document():
+    """
+    Télécharge le document restauré
+    """
+    restored_document = session.get('restored_document', None)
+    if restored_document and os.path.exists(restored_document):
+        # Déterminer le nom du fichier
+        filename = os.path.basename(restored_document)
+        # Retourner le fichier pour téléchargement
+        return send_file(restored_document, as_attachment=True, download_name=filename)
+    else:
+        flash('Document restauré non disponible', 'danger')
+        return redirect(url_for('restoration_results'))
 
 # Add error handlers
 @app.errorhandler(413)

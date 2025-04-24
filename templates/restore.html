@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Restauration d'Images et Documents</title>
+    <link rel="stylesheet" href="https://cdn.replit.com/agent/bootstrap-agent-dark-theme.min.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/custom.css') }}">
+</head>
+<body>
+    <div class="container py-5">
+        <header class="text-center mb-5">
+            <h1 class="display-4"><i class="bi bi-image-fill me-2"></i>Restauration d'Images & Documents</h1>
+            <p class="lead">Améliorez la qualité de vos images ou documents anciens, endommagés ou de faible qualité</p>
+            <a href="{{ url_for('index') }}" class="btn btn-outline-primary mt-2">
+                <i class="bi bi-arrow-left me-2"></i>Retour à l'Accueil
+            </a>
+        </header>
+
+        <!-- Flash Messages -->
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                {% for category, message in messages %}
+                    <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
+                        {{ message }}
+                        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                    </div>
+                {% endfor %}
+            {% endif %}
+        {% endwith %}
+
+        <div class="row">
+            <div class="col-lg-6 mb-4">
+                <div class="card h-100">
+                    <div class="card-header bg-primary text-white">
+                        <h3 class="mb-0"><i class="bi bi-info-circle me-2"></i>À propos de la restauration</h3>
+                    </div>
+                    <div class="card-body">
+                        <p>Notre service de restauration utilise des techniques avancées de traitement d'image pour :</p>
+                        <ul class="list-group list-group-flush mb-4">
+                            <li class="list-group-item d-flex align-items-center">
+                                <i class="bi bi-brightness-high me-3 text-warning"></i>
+                                <div>
+                                    <strong>Améliorer la luminosité et le contraste</strong>
+                                    <p class="mb-0 text-muted">Pour les images sombres ou surexposées</p>
+                                </div>
+                            </li>
+                            <li class="list-group-item d-flex align-items-center">
+                                <i class="bi bi-graph-up me-3 text-success"></i>
+                                <div>
+                                    <strong>Accentuer les contours et la netteté</strong>
+                                    <p class="mb-0 text-muted">Pour les images floues ou de faible résolution</p>
+                                </div>
+                            </li>
+                            <li class="list-group-item d-flex align-items-center">
+                                <i class="bi bi-palette me-3 text-primary"></i>
+                                <div>
+                                    <strong>Corriger les couleurs</strong>
+                                    <p class="mb-0 text-muted">Pour les images décolorées ou jaunies</p>
+                                </div>
+                            </li>
+                            <li class="list-group-item d-flex align-items-center">
+                                <i class="bi bi-eraser me-3 text-danger"></i>
+                                <div>
+                                    <strong>Réduire le bruit et les défauts</strong>
+                                    <p class="mb-0 text-muted">Pour les images granuleuses ou endommagées</p>
+                                </div>
+                            </li>
+                        </ul>
+                        <div class="alert alert-info">
+                            <i class="bi bi-lightbulb me-2"></i>
+                            <strong>Conseil :</strong> Pour de meilleurs résultats, utilisez des documents et images avec une résolution de 300 DPI ou plus.
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-lg-6">
+                <div class="card h-100">
+                    <div class="card-header bg-success text-white">
+                        <h3 class="mb-0"><i class="bi bi-upload me-2"></i>Télécharger un fichier</h3>
+                    </div>
+                    <div class="card-body">
+                        <form action="{{ url_for('restore_page') }}" method="post" enctype="multipart/form-data" id="uploadForm" class="mb-4">
+                            <div class="mb-4">
+                                <label for="fileSelect" class="form-label">Sélectionnez une image ou un document PDF</label>
+                                <div class="upload-zone mb-3" id="dropZone">
+                                    <input type="file" name="file" id="fileSelect" class="form-control" accept=".jpg,.jpeg,.png,.pdf" required>
+                                    <div class="text-center py-4">
+                                        <i class="bi bi-cloud-arrow-up display-4 mb-3"></i>
+                                        <p class="mb-0">Glissez et déposez votre fichier ici ou cliquez pour parcourir</p>
+                                        <small class="text-muted">JPG, JPEG, PNG ou PDF (max 16MB)</small>
+                                    </div>
+                                </div>
+                                <div id="filePreview" class="d-none text-center my-3">
+                                    <img id="imagePreview" class="img-fluid rounded mb-2 d-none" alt="Aperçu">
+                                    <div id="pdfPreview" class="d-none">
+                                        <i class="bi bi-file-earmark-pdf display-4 text-danger"></i>
+                                        <p class="mb-0" id="pdfName"></p>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <button type="submit" class="btn btn-success btn-lg w-100">
+                                <i class="bi bi-magic me-2"></i>Restaurer le fichier
+                            </button>
+                        </form>
+
+                        <div class="alert alert-warning">
+                            <i class="bi bi-exclamation-triangle me-2"></i>
+                            <strong>Note:</strong> La restauration peut prendre quelques instants en fonction de la taille et de la complexité du fichier.
+                        </div>
+
+                        <div class="card">
+                            <div class="card-header bg-dark text-white">
+                                <h5 class="mb-0">Types de fichiers pris en charge :</h5>
+                            </div>
+                            <ul class="list-group list-group-flush">
+                                <li class="list-group-item d-flex justify-content-between align-items-center">
+                                    Images
+                                    <span class="badge bg-primary">JPG, JPEG, PNG</span>
+                                </li>
+                                <li class="list-group-item d-flex justify-content-between align-items-center">
+                                    Documents
+                                    <span class="badge bg-danger">PDF</span>
+                                </li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.2.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const dropZone = document.getElementById('dropZone');
+            const fileInput = document.getElementById('fileSelect');
+            const filePreview = document.getElementById('filePreview');
+            const imagePreview = document.getElementById('imagePreview');
+            const pdfPreview = document.getElementById('pdfPreview');
+            const pdfName = document.getElementById('pdfName');
+
+            // Gérer le glisser-déposer
+            ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+                dropZone.addEventListener(eventName, preventDefaults, false);
+            });
+
+            function preventDefaults(e) {
+                e.preventDefault();
+                e.stopPropagation();
+            }
+
+            ['dragenter', 'dragover'].forEach(eventName => {
+                dropZone.addEventListener(eventName, highlight, false);
+            });
+
+            ['dragleave', 'drop'].forEach(eventName => {
+                dropZone.addEventListener(eventName, unhighlight, false);
+            });
+
+            function highlight() {
+                dropZone.classList.add('highlight');
+            }
+
+            function unhighlight() {
+                dropZone.classList.remove('highlight');
+            }
+
+            dropZone.addEventListener('drop', handleDrop, false);
+
+            function handleDrop(e) {
+                const dt = e.dataTransfer;
+                const files = dt.files;
+                fileInput.files = files;
+                updateFilePreview(files[0]);
+            }
+
+            // Gérer les changements de fichier via le bouton de parcourir
+            fileInput.addEventListener('change', function() {
+                if (this.files && this.files[0]) {
+                    updateFilePreview(this.files[0]);
+                }
+            });
+
+            function updateFilePreview(file) {
+                filePreview.classList.remove('d-none');
+                
+                // Réinitialiser les aperçus
+                imagePreview.classList.add('d-none');
+                pdfPreview.classList.add('d-none');
+                
+                if (file.type.startsWith('image/')) {
+                    // Aperçu d'image
+                    const reader = new FileReader();
+                    reader.onload = function(e) {
+                        imagePreview.src = e.target.result;
+                        imagePreview.classList.remove('d-none');
+                    }
+                    reader.readAsDataURL(file);
+                } else if (file.type === 'application/pdf') {
+                    // Aperçu de PDF
+                    pdfName.textContent = file.name;
+                    pdfPreview.classList.remove('d-none');
+                }
+            }
+        });
+    </script>
+</body>
+</html>
