@@ -174,6 +174,124 @@
         </div>
         {% endif %}
         
+        <!-- AI Book Recommendations -->
+        <div class="card mb-4">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h3 class="mb-0"><i class="bi bi-lightbulb me-2"></i>Recommandations basées sur l'IA</h3>
+                <button class="btn btn-sm btn-outline-primary" id="refreshRecommendations">
+                    <i class="bi bi-arrow-clockwise me-1"></i>Rafraîchir
+                </button>
+            </div>
+            <div class="card-body">
+                {% if recommendations and recommendations|length > 0 %}
+                    <div class="alert alert-info">
+                        <i class="bi bi-info-circle-fill me-2"></i>Basées sur les livres détectés dans votre bibliothèque
+                    </div>
+                    
+                    <div class="row row-cols-1 row-cols-md-3 g-4">
+                        {% for book in recommendations %}
+                        <div class="col">
+                            <div class="card h-100 border-info">
+                                <div class="card-header bg-info text-white">
+                                    <strong>Recommandation</strong>
+                                </div>
+                                <div class="card-body">
+                                    <h4 class="card-title">{{ book.title }}</h4>
+                                    <h6 class="card-subtitle mb-2 text-muted">{{ book.author }}</h6>
+                                    <p class="card-text">{{ book.description }}</p>
+                                </div>
+                                <div class="card-footer">
+                                    <small class="text-muted"><strong>Pourquoi ce livre :</strong> {{ book.reason }}</small>
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                {% else %}
+                    <div class="alert alert-warning">
+                        <i class="bi bi-exclamation-triangle-fill me-2"></i>
+                        Impossible de générer des recommandations. Essayez d'uploader une image avec plus de livres clairement visibles.
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+        
+        <!-- Analyse de la Bibliothèque -->
+        {% if genre_analysis and genre_analysis.genres|length > 0 %}
+        <div class="card mb-4">
+            <div class="card-header">
+                <h3 class="mb-0"><i class="bi bi-bar-chart me-2"></i>Analyse de votre bibliothèque</h3>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-4">
+                        <div class="card border-success mb-3">
+                            <div class="card-header bg-success text-white">Genres principaux</div>
+                            <div class="card-body">
+                                <ul class="list-group list-group-flush">
+                                    {% for genre in genre_analysis.genres %}
+                                    <li class="list-group-item d-flex justify-content-between align-items-center">
+                                        {{ genre }}
+                                        <span class="badge bg-primary rounded-pill">
+                                            <i class="bi bi-book"></i>
+                                        </span>
+                                    </li>
+                                    {% endfor %}
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="card border-primary mb-3">
+                            <div class="card-header bg-primary text-white">Thèmes récurrents</div>
+                            <div class="card-body">
+                                <ul class="list-group list-group-flush">
+                                    {% for theme in genre_analysis.themes %}
+                                    <li class="list-group-item d-flex justify-content-between align-items-center">
+                                        {{ theme }}
+                                        <span class="badge bg-info rounded-pill">
+                                            <i class="bi bi-tag"></i>
+                                        </span>
+                                    </li>
+                                    {% endfor %}
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="card border-dark mb-3">
+                            <div class="card-header bg-dark text-white">Profil littéraire</div>
+                            <div class="card-body">
+                                <p class="card-text">{{ genre_analysis.analysis }}</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+        
+        <!-- PDF Enhancement Options - Only shown if the uploaded file was a PDF -->
+        {% if is_pdf and enhanced_pdf %}
+        <div class="card mb-4">
+            <div class="card-header">
+                <h3 class="mb-0">PDF Enhancement</h3>
+            </div>
+            <div class="card-body">
+                <div class="alert alert-info">
+                    <i class="bi bi-info-circle-fill me-2"></i>
+                    Nous avons amélioré la qualité de votre PDF pour une meilleure lisibilité.
+                </div>
+                <a href="{{ url_for('download_enhanced_pdf') }}" class="btn btn-success">
+                    <i class="bi bi-file-earmark-pdf me-2"></i>Télécharger le PDF amélioré
+                </a>
+                <p class="mt-3 small text-muted">
+                    L'amélioration inclut : réglage du contraste, détection des bords, et réduction du bruit pour une meilleure lisibilité.
+                </p>
+            </div>
+        </div>
+        {% endif %}
+        
         <!-- Export Options -->
         <div class="card mb-4">
             <div class="card-header">
