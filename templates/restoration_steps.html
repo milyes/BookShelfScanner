@@ -1,0 +1,500 @@
+<!DOCTYPE html>
+<html lang="fr" data-bs-theme="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Étapes de Restauration | Analyseur de Bibliothèque</title>
+    <link rel="stylesheet" href="https://cdn.replit.com/agent/bootstrap-agent-dark-theme.min.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/custom.css') }}">
+    <style>
+        .step-icon {
+            font-size: 2.5rem;
+            margin-bottom: 1rem;
+        }
+        .progress-bar-step {
+            height: 0.5rem;
+            margin-bottom: 2rem;
+        }
+        .comparison-container {
+            position: relative;
+            overflow: hidden;
+        }
+        .comparison-slider {
+            position: absolute;
+            top: 0;
+            bottom: 0;
+            left: 50%;
+            width: 5px;
+            background: var(--bs-info);
+            cursor: ew-resize;
+            z-index: 10;
+        }
+        .comparison-slider::after {
+            content: '';
+            position: absolute;
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background: var(--bs-info);
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .comparison-before, .comparison-after {
+            width: 100%;
+            max-width: 100%;
+            height: auto;
+        }
+        .comparison-after {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 50%;
+            overflow: hidden;
+        }
+        .comparison-highlight {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(255, 193, 7, 0.2);
+            pointer-events: none;
+            z-index: 5;
+        }
+        .step-block {
+            padding: 1.5rem;
+            margin-bottom: 1.5rem;
+            transition: all 0.3s ease;
+        }
+        .step-block:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 20px rgba(0, 0, 0, 0.2);
+        }
+    </style>
+</head>
+<body>
+    <div class="container py-5">
+        <header class="text-center mb-5">
+            <h1 class="display-4"><i class="bi bi-tools me-2"></i>Processus de Restauration</h1>
+            <p class="lead">Visualisez les étapes de restauration de votre document</p>
+            <div class="btn-group mt-3">
+                <a href="{{ url_for('index') }}" class="btn btn-outline-primary">
+                    <i class="bi bi-house-door me-2"></i>Accueil
+                </a>
+                <a href="{{ url_for('restoration_results') }}" class="btn btn-outline-success">
+                    <i class="bi bi-file-earmark-check me-2"></i>Résultats Finaux
+                </a>
+            </div>
+        </header>
+
+        <!-- Progression du processus -->
+        <div class="card mb-5">
+            <div class="card-header bg-primary text-white">
+                <h2 class="mb-0">Progression de la Restauration</h2>
+            </div>
+            <div class="card-body">
+                <div class="progress progress-bar-step">
+                    <div class="progress-bar progress-bar-striped progress-bar-animated" role="progressbar" 
+                    style="width: {{ (current_step / total_steps) * 100 }}%;" 
+                    aria-valuenow="{{ (current_step / total_steps) * 100 }}" aria-valuemin="0" aria-valuemax="100">
+                        {{ current_step }}/{{ total_steps }}
+                    </div>
+                </div>
+                
+                <div class="row text-center">
+                    <div class="col">
+                        <div class="step-icon">
+                            <i class="bi bi-file-earmark-text {% if current_step >= 1 %}text-success{% else %}text-muted{% endif %}"></i>
+                        </div>
+                        <h5>Chargement du Document</h5>
+                        {% if current_step >= 1 %}
+                        <span class="badge bg-success">Complété</span>
+                        {% else %}
+                        <span class="badge bg-secondary">En attente</span>
+                        {% endif %}
+                    </div>
+                    <div class="col">
+                        <div class="step-icon">
+                            <i class="bi bi-images {% if current_step >= 2 %}text-success{% else %}text-muted{% endif %}"></i>
+                        </div>
+                        <h5>Extraction des Pages</h5>
+                        {% if current_step >= 2 %}
+                        <span class="badge bg-success">Complété</span>
+                        {% else %}
+                        <span class="badge bg-secondary">En attente</span>
+                        {% endif %}
+                    </div>
+                    <div class="col">
+                        <div class="step-icon">
+                            <i class="bi bi-brush {% if current_step >= 3 %}text-success{% else %}text-muted{% endif %}"></i>
+                        </div>
+                        <h5>Restauration d'Image</h5>
+                        {% if current_step >= 3 %}
+                        <span class="badge bg-success">Complété</span>
+                        {% elif current_step == 2 %}
+                        <span class="badge bg-warning">En cours</span>
+                        {% else %}
+                        <span class="badge bg-secondary">En attente</span>
+                        {% endif %}
+                    </div>
+                    <div class="col">
+                        <div class="step-icon">
+                            <i class="bi bi-file-earmark-pdf {% if current_step >= 4 %}text-success{% else %}text-muted{% endif %}"></i>
+                        </div>
+                        <h5>Recomposition du PDF</h5>
+                        {% if current_step >= 4 %}
+                        <span class="badge bg-success">Complété</span>
+                        {% else %}
+                        <span class="badge bg-secondary">En attente</span>
+                        {% endif %}
+                    </div>
+                    <div class="col">
+                        <div class="step-icon">
+                            <i class="bi bi-check-circle {% if current_step >= 5 %}text-success{% else %}text-muted{% endif %}"></i>
+                        </div>
+                        <h5>Finalisation</h5>
+                        {% if current_step >= 5 %}
+                        <span class="badge bg-success">Complété</span>
+                        {% else %}
+                        <span class="badge bg-secondary">En attente</span>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Détails du processus actuel -->
+        <div class="card mb-5">
+            <div class="card-header bg-info text-white">
+                <h2 class="mb-0">Détails de l'Étape Actuelle</h2>
+            </div>
+            <div class="card-body">
+                <div class="alert alert-info">
+                    <h4 class="alert-heading">{{ current_step_name }}</h4>
+                    <p>{{ current_step_description }}</p>
+                </div>
+                
+                {% if current_step == 2 %}
+                <div class="card step-block">
+                    <div class="card-body">
+                        <h4><i class="bi bi-grid-3x3 me-2"></i>Extraction des Pages</h4>
+                        <p>Le document est divisé en pages individuelles pour un traitement optimal.</p>
+                        <div class="progress mb-3">
+                            <div class="progress-bar bg-info" role="progressbar" style="width: {{ page_extract_progress }}%;" 
+                                aria-valuenow="{{ page_extract_progress }}" aria-valuemin="0" aria-valuemax="100">
+                                {{ page_extract_progress }}%
+                            </div>
+                        </div>
+                        <p class="text-muted">Pages extraites: {{ pages_extracted }} sur {{ total_pages }}</p>
+                    </div>
+                </div>
+                {% elif current_step == 3 %}
+                <div class="card step-block">
+                    <div class="card-body">
+                        <h4><i class="bi bi-brush me-2"></i>Restauration en Cours</h4>
+                        <p>Chaque page est traitée individuellement avec des algorithmes de restauration avancés.</p>
+                        <div class="progress mb-3">
+                            <div class="progress-bar bg-warning" role="progressbar" style="width: {{ restoration_progress }}%;" 
+                                aria-valuenow="{{ restoration_progress }}" aria-valuemin="0" aria-valuemax="100">
+                                {{ restoration_progress }}%
+                            </div>
+                        </div>
+                        <p class="text-muted">Page en cours de traitement: {{ current_page }} sur {{ total_pages }}</p>
+                        
+                        <div class="row mt-4">
+                            <div class="col-md-6">
+                                <div class="card mb-3">
+                                    <div class="card-header">Opérations en cours:</div>
+                                    <ul class="list-group list-group-flush">
+                                        <li class="list-group-item d-flex justify-content-between align-items-center">
+                                            Réduction du bruit
+                                            <span class="badge bg-success rounded-pill"><i class="bi bi-check"></i></span>
+                                        </li>
+                                        <li class="list-group-item d-flex justify-content-between align-items-center">
+                                            Amélioration du contraste
+                                            <span class="badge bg-success rounded-pill"><i class="bi bi-check"></i></span>
+                                        </li>
+                                        <li class="list-group-item d-flex justify-content-between align-items-center">
+                                            Correction des bords
+                                            <span class="badge bg-warning rounded-pill"><i class="bi bi-hourglass-split"></i></span>
+                                        </li>
+                                        <li class="list-group-item d-flex justify-content-between align-items-center">
+                                            Traitement des défauts
+                                            <span class="badge bg-secondary rounded-pill"><i class="bi bi-clock"></i></span>
+                                        </li>
+                                    </ul>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="card">
+                                    <div class="card-header">Paramètres appliqués:</div>
+                                    <ul class="list-group list-group-flush">
+                                        <li class="list-group-item d-flex justify-content-between align-items-center">
+                                            Intensité de restauration
+                                            <span class="badge bg-primary rounded-pill">Moyenne</span>
+                                        </li>
+                                        <li class="list-group-item d-flex justify-content-between align-items-center">
+                                            Conservation des détails
+                                            <span class="badge bg-primary rounded-pill">Haute</span>
+                                        </li>
+                                        <li class="list-group-item d-flex justify-content-between align-items-center">
+                                            Optimisation pour OCR
+                                            <span class="badge bg-primary rounded-pill">Activée</span>
+                                        </li>
+                                    </ul>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                {% elif current_step == 4 %}
+                <div class="card step-block">
+                    <div class="card-body">
+                        <h4><i class="bi bi-file-earmark-pdf me-2"></i>Recomposition du Document</h4>
+                        <p>Toutes les pages restaurées sont réassemblées en un document PDF unique.</p>
+                        <div class="progress mb-3">
+                            <div class="progress-bar bg-success" role="progressbar" style="width: {{ recompose_progress }}%;" 
+                                aria-valuenow="{{ recompose_progress }}" aria-valuemin="0" aria-valuemax="100">
+                                {{ recompose_progress }}%
+                            </div>
+                        </div>
+                        <p class="text-muted">Pages ajoutées: {{ pages_added }} sur {{ total_pages }}</p>
+                    </div>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+        
+        <!-- Comparaison avant/après pour une page -->
+        {% if show_comparison %}
+        <div class="card mb-5">
+            <div class="card-header bg-success text-white">
+                <h2 class="mb-0">Aperçu de la Restauration</h2>
+            </div>
+            <div class="card-body">
+                <div class="alert alert-success">
+                    <i class="bi bi-info-circle-fill me-2"></i>
+                    Faites glisser pour comparer l'avant et l'après de la restauration.
+                </div>
+                
+                <div class="row mb-4">
+                    <div class="col-md-12">
+                        <div class="comparison-container" style="height: 500px;">
+                            <img src="{{ original_page_url }}" alt="Image originale" class="comparison-before img-fluid">
+                            <div class="comparison-after">
+                                <img src="{{ restored_page_url }}" alt="Image restaurée" class="img-fluid" style="width: 100%;">
+                            </div>
+                            <div class="comparison-slider"></div>
+                            
+                            <div class="row mt-3">
+                                <div class="col">
+                                    <div class="d-flex justify-content-between">
+                                        <span class="badge bg-dark">Original</span>
+                                        <span class="badge bg-success">Restauré</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="card mb-3">
+                            <div class="card-header bg-dark text-white">Avant Restauration</div>
+                            <div class="card-body">
+                                <ul class="list-group list-group-flush">
+                                    <li class="list-group-item d-flex justify-content-between align-items-center">
+                                        Bruit
+                                        <span class="badge bg-danger">Élevé</span>
+                                    </li>
+                                    <li class="list-group-item d-flex justify-content-between align-items-center">
+                                        Contraste
+                                        <span class="badge bg-warning">Faible</span>
+                                    </li>
+                                    <li class="list-group-item d-flex justify-content-between align-items-center">
+                                        Lisibilité du texte
+                                        <span class="badge bg-danger">Moyenne</span>
+                                    </li>
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="card mb-3">
+                            <div class="card-header bg-success text-white">Après Restauration</div>
+                            <div class="card-body">
+                                <ul class="list-group list-group-flush">
+                                    <li class="list-group-item d-flex justify-content-between align-items-center">
+                                        Bruit
+                                        <span class="badge bg-success">Réduit</span>
+                                    </li>
+                                    <li class="list-group-item d-flex justify-content-between align-items-center">
+                                        Contraste
+                                        <span class="badge bg-success">Amélioré</span>
+                                    </li>
+                                    <li class="list-group-item d-flex justify-content-between align-items-center">
+                                        Lisibilité du texte
+                                        <span class="badge bg-success">Élevée</span>
+                                    </li>
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+        
+        <!-- Zone de paramètres ajustables -->
+        <div class="card mb-5">
+            <div class="card-header bg-primary text-white">
+                <h2 class="mb-0">Paramètres de Restauration</h2>
+            </div>
+            <div class="card-body">
+                <form action="{{ url_for('update_restoration_settings') }}" method="post">
+                    <div class="row">
+                        <div class="col-md-4">
+                            <div class="form-group mb-3">
+                                <label for="intensity" class="form-label">Intensité de restauration</label>
+                                <select class="form-select" id="intensity" name="intensity">
+                                    <option value="low" {% if intensity == 'low' %}selected{% endif %}>Faible</option>
+                                    <option value="medium" {% if intensity == 'medium' %}selected{% endif %}>Moyenne</option>
+                                    <option value="high" {% if intensity == 'high' %}selected{% endif %}>Élevée</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="form-group mb-3">
+                                <label for="detail" class="form-label">Conservation des détails</label>
+                                <select class="form-select" id="detail" name="detail">
+                                    <option value="low" {% if detail == 'low' %}selected{% endif %}>Faible</option>
+                                    <option value="medium" {% if detail == 'medium' %}selected{% endif %}>Moyenne</option>
+                                    <option value="high" {% if detail == 'high' %}selected{% endif %}>Élevée</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="form-group mb-3">
+                                <label for="ocr_optimize" class="form-label">Optimisation pour OCR</label>
+                                <select class="form-select" id="ocr_optimize" name="ocr_optimize">
+                                    <option value="enabled" {% if ocr_optimize == 'enabled' %}selected{% endif %}>Activée</option>
+                                    <option value="disabled" {% if ocr_optimize == 'disabled' %}selected{% endif %}>Désactivée</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="row mt-3">
+                        <div class="col-md-6">
+                            <div class="form-check form-switch mb-3">
+                                <input class="form-check-input" type="checkbox" id="remove_stains" name="remove_stains" {% if remove_stains %}checked{% endif %}>
+                                <label class="form-check-label" for="remove_stains">Suppression des taches</label>
+                            </div>
+                            <div class="form-check form-switch mb-3">
+                                <input class="form-check-input" type="checkbox" id="fix_borders" name="fix_borders" {% if fix_borders %}checked{% endif %}>
+                                <label class="form-check-label" for="fix_borders">Correction des bords</label>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="form-check form-switch mb-3">
+                                <input class="form-check-input" type="checkbox" id="enhance_text" name="enhance_text" {% if enhance_text %}checked{% endif %}>
+                                <label class="form-check-label" for="enhance_text">Amélioration du texte</label>
+                            </div>
+                            <div class="form-check form-switch mb-3">
+                                <input class="form-check-input" type="checkbox" id="auto_rotate" name="auto_rotate" {% if auto_rotate %}checked{% endif %}>
+                                <label class="form-check-label" for="auto_rotate">Rotation automatique</label>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="d-grid gap-2 d-md-flex justify-content-md-end mt-4">
+                        <button type="submit" class="btn btn-primary">
+                            <i class="bi bi-sliders me-2"></i>Appliquer les paramètres
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+    
+    <footer class="bg-dark text-light py-4 mt-5">
+        <div class="container text-center">
+            <p>Analyseur de Bibliothèque &copy; 2025</p>
+        </div>
+    </footer>
+    
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        // Script pour le slider de comparaison avant/après
+        document.addEventListener('DOMContentLoaded', function() {
+            const slider = document.querySelector('.comparison-slider');
+            const beforeImage = document.querySelector('.comparison-before');
+            const afterImage = document.querySelector('.comparison-after');
+            
+            if (!slider || !beforeImage || !afterImage) return;
+            
+            let isActive = false;
+            
+            function updateSliderPosition(x) {
+                // Obtenir la largeur du conteneur
+                const containerWidth = slider.parentElement.offsetWidth;
+                let position = (x / containerWidth) * 100;
+                position = Math.max(0, Math.min(position, 100));
+                
+                // Mettre à jour la position du slider
+                slider.style.left = `${position}%`;
+                
+                // Mettre à jour la largeur de l'image "après"
+                afterImage.style.width = `${position}%`;
+            }
+            
+            // Événements pour la souris
+            slider.addEventListener('mousedown', function() {
+                isActive = true;
+            });
+            
+            document.addEventListener('mouseup', function() {
+                isActive = false;
+            });
+            
+            document.addEventListener('mousemove', function(e) {
+                if (!isActive) return;
+                
+                const rect = slider.parentElement.getBoundingClientRect();
+                const x = e.clientX - rect.left;
+                
+                updateSliderPosition(x);
+                e.preventDefault();
+            });
+            
+            // Événements pour le toucher (mobile)
+            slider.addEventListener('touchstart', function() {
+                isActive = true;
+            });
+            
+            document.addEventListener('touchend', function() {
+                isActive = false;
+            });
+            
+            document.addEventListener('touchcancel', function() {
+                isActive = false;
+            });
+            
+            document.addEventListener('touchmove', function(e) {
+                if (!isActive) return;
+                
+                const rect = slider.parentElement.getBoundingClientRect();
+                const touch = e.touches[0];
+                const x = touch.clientX - rect.left;
+                
+                updateSliderPosition(x);
+                e.preventDefault();
+            });
+        });
+    </script>
+</body>
+</html>

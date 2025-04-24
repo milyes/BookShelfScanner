@@ -184,7 +184,7 @@ def restore_image(image_path, output_path=None):
         logging.error(f"Erreur lors de la restauration de l'image: {str(e)}")
         return None
 
-def restore_document(doc_path, output_path=None):
+def restore_document(doc_path, output_path=None, session=None):
     """
     Restaure un document (PDF) endommagé ou dégradé.
     Traite chaque page individuellement pour une meilleure restauration.
@@ -192,6 +192,7 @@ def restore_document(doc_path, output_path=None):
     Args:
         doc_path: Chemin vers le document à restaurer.
         output_path: Chemin pour le document restauré (optionnel).
+        session: L'objet session Flask pour stocker les informations de progression (optionnel).
         
     Returns:
         Le chemin du document restauré si output_path est spécifié, sinon None.
@@ -210,10 +211,47 @@ def restore_document(doc_path, output_path=None):
     temp_dir = tempfile.mkdtemp()
     temp_restored_dir = tempfile.mkdtemp()
     
+    # Initialiser l'état de restauration si une session est fournie
+    if session is not None:
+        restoration_status = {
+            'current_step': 1,
+            'total_steps': 5,
+            'pages_extracted': 0,
+            'total_pages': 0,
+            'current_page': 0,
+            'pages_added': 0,
+            'show_comparison': False,
+            'settings': {
+                'intensity': 'medium',
+                'detail': 'high',
+                'ocr_optimize': 'enabled',
+                'remove_stains': True,
+                'fix_borders': True,
+                'enhance_text': True,
+                'auto_rotate': False
+            }
+        }
+        session['restoration_status'] = restoration_status
+    
     try:
-        # 1. Extraire les pages du PDF
+        # 1. Extraire les pages du PDF - Étape 1: Chargement du document
+        if session is not None:
+            restoration_status = session.get('restoration_status', {})
+            restoration_status['current_step'] = 1
+            session['restoration_status'] = restoration_status
+            session.modified = True
+        
+        # 2. Étape 2: Extraction des pages
         logging.debug(f"Extraction des pages du document {doc_path}...")
         images = convert_from_path(doc_path)
+        total_pages = len(images)
+        
+        if session is not None:
+            restoration_status = session.get('restoration_status', {})
+            restoration_status['current_step'] = 2
+            restoration_status['total_pages'] = total_pages
+            session['restoration_status'] = restoration_status
+            session.modified = True
         
         # Définir le chemin de sortie si non spécifié
         if output_path is None:
@@ -222,11 +260,25 @@ def restore_document(doc_path, output_path=None):
             timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
             output_path = os.path.join(os.path.dirname(doc_path), f"{base_name}_restored_{timestamp}.pdf")
         
-        # 2. Créer un nouveau PDF pour le document restauré
+        # 3. Créer un nouveau PDF pour le document restauré
         pdf = FPDF()
         
-        # 3. Traiter chaque page
+        # 4. Traiter chaque page - Étape 3: Restauration des Images
+        if session is not None:
+            restoration_status = session.get('restoration_status', {})
+            restoration_status['current_step'] = 3
+            session['restoration_status'] = restoration_status
+            session.modified = True
+        
         for i, img in enumerate(images):
+            # Mettre à jour la page en cours de traitement
+            if session is not None:
+                restoration_status = session.get('restoration_status', {})
+                restoration_status['current_page'] = i + 1
+                restoration_status['pages_extracted'] = i + 1
+                session['restoration_status'] = restoration_status
+                session.modified = True
+            
             # Sauvegarder l'image temporairement
             temp_img_path = os.path.join(temp_dir, f"page_{i+1}.jpg")
             img.save(temp_img_path, "JPEG")
@@ -236,16 +288,56 @@ def restore_document(doc_path, output_path=None):
             restored = restore_image(temp_img_path, restored_img_path)
             
             if restored is not None:
-                # Ajouter la page restaurée au PDF
+                # Ajouter la page restaurée au PDF et mettre à jour la progression
+                if session is not None:
+                    # Pour la visualisation avant/après, enregistrer la première page par défaut
+                    if i == 0 or (total_pages > 2 and i == 1):
+                        # Créer des copies des images pour l'affichage
+                        display_original_path = os.path.join('static/uploads', f"original_page_{i+1}_{os.path.basename(doc_path)}.jpg")
+                        display_restored_path = os.path.join('static/uploads', f"restored_page_{i+1}_{os.path.basename(doc_path)}.jpg")
+                        
+                        # Copier les images
+                        shutil.copy(temp_img_path, display_original_path)
+                        shutil.copy(restored_img_path, display_restored_path)
+                        
+                        restoration_status = session.get('restoration_status', {})
+                        restoration_status['show_comparison'] = True
+                        restoration_status['original_page'] = os.path.basename(display_original_path)
+                        restoration_status['restored_page'] = os.path.basename(display_restored_path)
+                        session['restoration_status'] = restoration_status
+                        session.modified = True
+                
+                # 5. Étape 4: Recomposition du document
+                if i == 0 and session is not None:
+                    restoration_status = session.get('restoration_status', {})
+                    restoration_status['current_step'] = 4
+                    session['restoration_status'] = restoration_status
+                    session.modified = True
+                
+                # Ajouter la page au PDF
                 pdf.add_page()
                 pdf.image(restored_img_path, x=0, y=0, w=210, h=297)  # Format A4
                 logging.debug(f"Page {i+1} restaurée et ajoutée au PDF")
+                
+                # Mettre à jour le nombre de pages ajoutées
+                if session is not None:
+                    restoration_status = session.get('restoration_status', {})
+                    restoration_status['pages_added'] = i + 1
+                    session['restoration_status'] = restoration_status
+                    session.modified = True
         
-        # 4. Sauvegarder le PDF restauré
+        # 6. Étape 5: Finalisation
+        if session is not None:
+            restoration_status = session.get('restoration_status', {})
+            restoration_status['current_step'] = 5
+            session['restoration_status'] = restoration_status
+            session.modified = True
+        
+        # 7. Sauvegarder le PDF restauré
         pdf.output(output_path)
         logging.debug(f"Document restauré sauvegardé: {output_path}")
         
-        # 5. Nettoyer les fichiers temporaires
+        # 8. Nettoyer les fichiers temporaires
         shutil.rmtree(temp_dir, ignore_errors=True)
         shutil.rmtree(temp_restored_dir, ignore_errors=True)
         
