@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>BookShelf Analyzer</title>
+    <title>Analyseur de Bibliothèque</title>
     <link rel="stylesheet" href="https://cdn.replit.com/agent/bootstrap-agent-dark-theme.min.css">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/custom.css') }}">
@@ -11,8 +11,8 @@
 <body>
     <div class="container py-5">
         <header class="text-center mb-5">
-            <h1 class="display-4"><i class="bi bi-book me-2"></i>BookShelf Analyzer</h1>
-            <p class="lead">Upload an image of your bookshelf and we'll identify your books</p>
+            <h1 class="display-4"><i class="bi bi-book me-2"></i>Analyseur de Bibliothèque</h1>
+            <p class="lead">Téléchargez une image de votre bibliothèque et nous identifierons vos livres</p>
         </header>
 
         <!-- Flash Messages -->
@@ -31,7 +31,7 @@
             <div class="col-md-8">
                 <div class="card shadow-sm">
                     <div class="card-body p-4">
-                        <h2 class="card-title text-center mb-4">Upload Your Bookshelf Image</h2>
+                        <h2 class="card-title text-center mb-4">Téléchargez l'image de votre bibliothèque</h2>
                         
                         <form action="{{ url_for('upload_image') }}" method="post" enctype="multipart/form-data" id="uploadForm">
                             <div class="mb-4">
@@ -54,7 +54,7 @@
 
                             <div class="d-grid">
                                 <button type="submit" class="btn btn-primary btn-lg" id="analyzeBtn">
-                                    <i class="bi bi-search me-2"></i>Analyze Bookshelf
+                                    <i class="bi bi-search me-2"></i>Analyser ma bibliothèque
                                 </button>
                             </div>
                         </form>
@@ -68,8 +68,8 @@
                 <div class="card mb-4 h-100">
                     <div class="card-body text-center">
                         <i class="bi bi-camera display-4 mb-3"></i>
-                        <h3>Clear Photos</h3>
-                        <p>For best results, take clear, well-lit photos of your bookshelf with book spines clearly visible.</p>
+                        <h3>Photos nettes</h3>
+                        <p>Pour de meilleurs résultats, prenez des photos bien éclairées de votre bibliothèque avec les tranches de livres clairement visibles.</p>
                     </div>
                 </div>
             </div>
@@ -77,8 +77,8 @@
                 <div class="card mb-4 h-100">
                     <div class="card-body text-center">
                         <i class="bi bi-book-half display-4 mb-3"></i>
-                        <h3>Book Spines</h3>
-                        <p>Ensure book spines are facing the camera and text is readable for optimal recognition.</p>
+                        <h3>Tranches de livres</h3>
+                        <p>Assurez-vous que les tranches des livres font face à la caméra et que le texte est lisible pour une reconnaissance optimale.</p>
                     </div>
                 </div>
             </div>
@@ -86,8 +86,8 @@
                 <div class="card mb-4 h-100">
                     <div class="card-body text-center">
                         <i class="bi bi-file-earmark-pdf display-4 mb-3"></i>
-                        <h3>PDF Support</h3>
-                        <p>You can also upload PDF documents containing bookshelf images for analysis and recognition.</p>
+                        <h3>Support PDF</h3>
+                        <p>Vous pouvez également télécharger des documents PDF contenant des images de bibliothèque pour analyse et reconnaissance.</p>
                     </div>
                 </div>
             </div>
@@ -96,7 +96,7 @@
 
     <footer class="bg-dark text-light py-4 mt-5">
         <div class="container text-center">
-            <p>BookShelf Analyzer &copy; 2023</p>
+            <p>Analyseur de Bibliothèque &copy; 2025</p>
         </div>
     </footer>
 
