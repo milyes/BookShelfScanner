@@ -241,18 +241,18 @@ def download_enhanced_pdf():
         # Retourner le fichier pour téléchargement
         return send_file(enhanced_pdf, as_attachment=True, download_name=filename)
     else:
-        flash('Enhanced PDF not available', 'danger')
+        flash('PDF amélioré non disponible', 'danger')
         return redirect(url_for('results'))
 
 # Add error handlers
 @app.errorhandler(413)
 def too_large(e):
-    flash('File too large (max 16MB)', 'danger')
+    flash('Fichier trop volumineux (max 16Mo)', 'danger')
     return redirect(url_for('index'))
 
 @app.errorhandler(500)
 def server_error(e):
-    flash('Server error: ' + str(e), 'danger')
+    flash('Erreur serveur : ' + str(e), 'danger')
     return redirect(url_for('index'))
 
 if __name__ == '__main__':
