@@ -4,6 +4,10 @@ import tempfile
 import cv2
 import numpy as np
 from pdf2image import convert_from_path
+from fpdf import FPDF
+
+# Configurer le logging
+logging.basicConfig(level=logging.DEBUG)
 
 def enhance_pdf_image(image):
     """
@@ -45,6 +49,67 @@ def enhance_pdf_image(image):
         logging.error(f"Erreur lors de l'amélioration de l'image: {str(e)}")
         return image  # Retourner l'image originale en cas d'erreur
 
+def clean_pdf_convert_to_images(pdf_path, temp_dir=None, delete_original=False):
+    """
+    Convertit un PDF en images améliorées et nettoie le cache Poppler.
+    Basé sur le script pdf_to_clean_images.py.
+    
+    Args:
+        pdf_path: Chemin vers le fichier PDF d'entrée.
+        temp_dir: Dossier pour les fichiers temporaires (optionnel).
+        delete_original: Si True, supprime le fichier PDF original après traitement.
+        
+    Returns:
+        Une liste des chemins d'images générées.
+    """
+    if not os.path.exists(pdf_path):
+        logging.error(f"[!] Le fichier {pdf_path} est introuvable.")
+        return []
+    
+    # Créer un dossier temporaire si nécessaire
+    if temp_dir is None:
+        temp_dir = tempfile.mkdtemp()
+    
+    image_paths = []
+    
+    try:
+        # Conversion du PDF en images
+        logging.debug(f"[*] Conversion des pages PDF en images...")
+        images = convert_from_path(pdf_path)
+        
+        for i, img in enumerate(images):
+            # Sauvegarder l'image
+            img_path = os.path.join(temp_dir, f"page_{i+1}.jpg")
+            img.save(img_path, "JPEG")
+            image_paths.append(img_path)
+            logging.debug(f"[+] Page {i+1} sauvegardée: {img_path}")
+        
+        # Suppression du fichier original si demandé
+        if delete_original:
+            try:
+                os.remove(pdf_path)
+                logging.debug(f"[-] Fichier original supprimé : {pdf_path}")
+            except Exception as e:
+                logging.error(f"[!] Impossible de supprimer le fichier source : {e}")
+        
+        # Nettoyage du cache Poppler
+        try:
+            cache_dir = "/tmp"
+            logging.debug(f"[~] Nettoyage du cache temporaire ({cache_dir})...")
+            for f in os.listdir(cache_dir):
+                fpath = os.path.join(cache_dir, f)
+                if os.path.isfile(fpath) and "poppler" in f:
+                    os.remove(fpath)
+            logging.debug("[✓] Nettoyage terminé.")
+        except Exception as e:
+            logging.warning(f"[!] Erreur lors du nettoyage du cache : {e}")
+            
+        return image_paths
+    
+    except Exception as e:
+        logging.error(f"[!] Erreur lors de la conversion : {e}")
+        return []
+
 def process_pdf(pdf_path, output_pdf_path=None, enhance=True):
     """
     Traite un fichier PDF pour améliorer sa lisibilité et crée un nouveau PDF.
@@ -57,8 +122,6 @@ def process_pdf(pdf_path, output_pdf_path=None, enhance=True):
     Returns:
         Une liste des images améliorées.
     """
-    from fpdf import FPDF
-    
     if not os.path.exists(pdf_path):
         logging.error(f"Le fichier {pdf_path} est introuvable.")
         return None
@@ -70,6 +133,8 @@ def process_pdf(pdf_path, output_pdf_path=None, enhance=True):
         
         enhanced_images = []
         
+        # Créer un nouveau PDF si un chemin de sortie est fourni
+        pdf = None
         if output_pdf_path:
             pdf = FPDF()
         
@@ -102,7 +167,7 @@ def process_pdf(pdf_path, output_pdf_path=None, enhance=True):
                 os.remove(temp_path)
         
         # Sauvegarder le PDF si un chemin de sortie est fourni
-        if output_pdf_path:
+        if output_pdf_path and pdf is not None:
             pdf.output(output_pdf_path)
             logging.debug(f"Nouveau PDF généré : {output_pdf_path}")
         
