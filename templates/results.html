@@ -34,7 +34,7 @@
         {% if original_image %}
         <div class="card mb-5">
             <div class="card-header">
-                <h2 class="mb-0">Original Bookshelf Image</h2>
+                <h2 class="mb-0">Image originale de la bibliothèque</h2>
             </div>
             <div class="card-body text-center">
                 <img src="{{ url_for('static', filename='uploads/' + original_image) }}" alt="Original Bookshelf" class="img-fluid rounded" style="max-height: 400px;">
@@ -45,13 +45,13 @@
         <!-- Results Summary -->
         <div class="card mb-5">
             <div class="card-header d-flex justify-content-between align-items-center">
-                <h2 class="mb-0">Detected Books ({{ books|length }})</h2>
+                <h2 class="mb-0">Livres détectés ({{ books|length }})</h2>
                 <div class="btn-group">
                     <button class="btn btn-sm btn-outline-primary" id="listViewBtn">
-                        <i class="bi bi-list"></i> List View
+                        <i class="bi bi-list"></i> Vue liste
                     </button>
                     <button class="btn btn-sm btn-outline-primary active" id="gridViewBtn">
-                        <i class="bi bi-grid"></i> Grid View
+                        <i class="bi bi-grid"></i> Vue grille
                     </button>
                 </div>
             </div>
