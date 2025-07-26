@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <title>DZROUGE TERMINAL</title>
+  <style>
+    body {
+      background-color: black;
+      color: red;
+      font-family: monospace;
+      padding: 30px;
+      text-align: center;
+    }
+    h1 {
+      text-shadow: 0 0 10px red;
+      animation: clignote 1s infinite;
+    }
+    #msg {
+      margin-top: 40px;
+      font-size: 18px;
+      color: #ff4444;
+    }
+    @keyframes clignote {
+      0% { opacity: 1; }
+      50% { opacity: 0.3; }
+      100% { opacity: 1; }
+    }
+  </style>
+  <script>
+    function lancerDZROUGE() {
+      document.getElementById("msg").innerHTML = 
+        ">> Chargement du noyau IA...<br>> Interface rouge active.<br>> DZROUGE IA en surveillance.";
+    }
+  </script>
+</head>
+<body>
+  <h1>DZROUGE TERMINAL - IA NetSecurePro</h1>
+  <button onclick="lancerDZROUGE()" style="padding:10px 20px;font-size:16px;">Activer IA</button>
+  <div id="msg"></div>
+</body>
+</html>
