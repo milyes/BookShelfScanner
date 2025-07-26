@@ -1,109 +1,140 @@
 <!DOCTYPE html>
-<html lang="en" data-bs-theme="dark">
+<html lang="fr">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Analyseur de Bibliothèque</title>
-    <link rel="stylesheet" href="https://cdn.replit.com/agent/bootstrap-agent-dark-theme.min.css">
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/custom.css') }}">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>IA22 Logic – Plateforme IA Éducative</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background: #f4f8fc;
+      margin: 0;
+      padding: 2rem;
+      color: #222;
+    }
+    header {
+      background: #003366;
+      color: white;
+      padding: 1rem;
+      text-align: center;
+      border-radius: 8px;
+    }
+    h1 {
+      margin: 0;
+      font-size: 1.8rem;
+    }
+    #chatbox {
+      margin-top: 2rem;
+      max-width: 700px;
+      margin-left: auto;
+      margin-right: auto;
+      background: white;
+      padding: 1rem;
+      border-radius: 8px;
+      box-shadow: 0 0 10px #ccc;
+    }
+    .msg {
+      margin: 0.5rem 0;
+      padding: 0.5rem 1rem;
+      border-radius: 5px;
+    }
+    .user {
+      background: #cce5ff;
+      text-align: right;
+    }
+    .ai {
+      background: #e2e2e2;
+      text-align: left;
+    }
+    #form {
+      display: flex;
+      gap: 0.5rem;
+      margin-top: 1rem;
+    }
+    #input {
+      flex-grow: 1;
+      padding: 0.5rem;
+      font-size: 1rem;
+      border-radius: 4px;
+      border: 1px solid #999;
+    }
+    button {
+      padding: 0.5rem 1rem;
+      font-size: 1rem;
+      border: none;
+      border-radius: 4px;
+      background: #003366;
+      color: white;
+      cursor: pointer;
+    }
+    footer {
+      margin-top: 3rem;
+      text-align: center;
+      font-size: 0.9rem;
+      color: #555;
+    }
+  </style>
 </head>
 <body>
-    <div class="container py-5">
-        <header class="text-center mb-5">
-            <h1 class="display-4"><i class="bi bi-book me-2"></i>Analyseur de Bibliothèque</h1>
-            <p class="lead">Téléchargez une image de votre bibliothèque et nous identifierons vos livres</p>
-            <a href="{{ url_for('restore_page') }}" class="btn btn-outline-success mt-2">
-                <i class="bi bi-image me-2"></i>Restaurer une image ou un document
-            </a>
-        </header>
 
-        <!-- Flash Messages -->
-        {% with messages = get_flashed_messages(with_categories=true) %}
-            {% if messages %}
-                {% for category, message in messages %}
-                    <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
-                        {{ message }}
-                        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-                    </div>
-                {% endfor %}
-            {% endif %}
-        {% endwith %}
+  <header>
+    <h1>IA22_LOGIC – Plateforme Coopkit IA Online</h1>
+    <p>Éducation, Médecine, IA Visionnaire & ChatGPT</p>
+  </header>
 
-        <div class="row justify-content-center">
-            <div class="col-md-8">
-                <div class="card shadow-sm">
-                    <div class="card-body p-4">
-                        <h2 class="card-title text-center mb-4">Téléchargez l'image de votre bibliothèque</h2>
-                        
-                        <form action="{{ url_for('upload_image') }}" method="post" enctype="multipart/form-data" id="uploadForm">
-                            <div class="mb-4">
-                                <div class="upload-area p-5 text-center border rounded">
-                                    <div class="upload-icon mb-3">
-                                        <i class="bi bi-cloud-arrow-up display-1"></i>
-                                    </div>
-                                    <p class="mb-3">Glissez-déposez votre image ou PDF ici, ou cliquez pour parcourir</p>
-                                    <input type="file" id="fileInput" name="file" class="form-control" accept=".jpg,.jpeg,.png,.pdf" required>
-                                    <small class="text-muted mt-2 d-block">Formats acceptés : JPG, PNG et PDF</small>
-                                </div>
-                            </div>
+  <div id="chatbox">
+    <div id="messages"></div>
+    <form id="form">
+      <input type="text" id="input" placeholder="Posez une question..." required />
+      <button type="submit">Envoyer</button>
+    </form>
+  </div>
 
-                            <div id="previewContainer" class="mb-4 d-none">
-                                <label class="form-label">Aperçu de l'image :</label>
-                                <div class="text-center">
-                                    <img id="imagePreview" class="img-fluid rounded" alt="Aperçu">
-                                </div>
-                            </div>
+  <footer>
+    Propulsé par NetSecurePro IA – Mohammed Ilyes Zoubirou © 2025
+  </footer>
 
-                            <div class="d-grid">
-                                <button type="submit" class="btn btn-primary btn-lg" id="analyzeBtn">
-                                    <i class="bi bi-search me-2"></i>Analyser ma bibliothèque
-                                </button>
-                            </div>
-                        </form>
-                    </div>
-                </div>
-            </div>
-        </div>
+  <script>
+    const form = document.getElementById('form');
+    const input = document.getElementById('input');
+    const messages = document.getElementById('messages');
 
-        <div class="row mt-5">
-            <div class="col-md-4">
-                <div class="card mb-4 h-100">
-                    <div class="card-body text-center">
-                        <i class="bi bi-camera display-4 mb-3"></i>
-                        <h3>Photos nettes</h3>
-                        <p>Pour de meilleurs résultats, prenez des photos bien éclairées de votre bibliothèque avec les tranches de livres clairement visibles.</p>
-                    </div>
-                </div>
-            </div>
-            <div class="col-md-4">
-                <div class="card mb-4 h-100">
-                    <div class="card-body text-center">
-                        <i class="bi bi-book-half display-4 mb-3"></i>
-                        <h3>Tranches de livres</h3>
-                        <p>Assurez-vous que les tranches des livres font face à la caméra et que le texte est lisible pour une reconnaissance optimale.</p>
-                    </div>
-                </div>
-            </div>
-            <div class="col-md-4">
-                <div class="card mb-4 h-100">
-                    <div class="card-body text-center">
-                        <i class="bi bi-file-earmark-pdf display-4 mb-3"></i>
-                        <h3>Support PDF</h3>
-                        <p>Vous pouvez également télécharger des documents PDF contenant des images de bibliothèque pour analyse et reconnaissance.</p>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const text = input.value.trim();
+      if (!text) return;
 
-    <footer class="bg-dark text-light py-4 mt-5">
-        <div class="container text-center">
-            <p>Analyseur de Bibliothèque &copy; 2025</p>
-        </div>
-    </footer>
+      addMessage(text, 'user');
+      input.value = '';
 
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-    <script src="{{ url_for('static', filename='js/script.js') }}"></script>
+      addMessage("Réflexion IA en cours...", 'ai');
+
+      try {
+        const res = await fetch("https://api.mlyes.netsecurepro.ai/chat", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json"
+          },
+          body: JSON.stringify({ message: text })
+        });
+
+        const data = await res.json();
+        document.querySelectorAll('.ai').pop().remove();
+        addMessage(data.reply || "[Aucune réponse]", 'ai');
+      } catch (err) {
+        document.querySelectorAll('.ai').pop().remove();
+        addMessage("Erreur de connexion au serveur IA.", 'ai');
+      }
+    });
+
+    function addMessage(text, type) {
+      const msg = document.createElement('div');
+      msg.className = 'msg ' + type;
+      msg.textContent = text;
+      messages.appendChild(msg);
+      messages.scrollTop = messages.scrollHeight;
+    }
+  </script>
+
 </body>
 </html>
